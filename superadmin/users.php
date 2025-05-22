@@ -2,31 +2,57 @@
 session_start();
 require_once '../db/db.php';
 
-// Check if the user is logged in and has the Admin role
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "Admin") {
-    header("Location: ../login.php");
+// Check if user is logged in and has SuperAdmin role
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'SuperAdmin') {
+    header('Location: ../login.php');
     exit();
 }
 
 // Get user info from the database
 $user_id = $_SESSION['user_id'];
-$query = "SELECT fullname, profile_picture, last_active FROM users WHERE id = ?";
-$stmt = $conn->prepare($query);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+$query_user = "SELECT fullname, profile_picture, last_active FROM users WHERE id = ?";
+$stmt_user = $conn->prepare($query_user);
+$stmt_user->bind_param("i", $user_id);
+$stmt_user->execute();
+$result_user = $stmt_user->get_result();
+$user = $result_user->fetch_assoc();
 
 $fullname = htmlspecialchars($user['fullname']);
 $profile_picture = htmlspecialchars($user['profile_picture'] ?: '../assets/images/profile-placeholder.png');
-// Determine online status (active within the last 5 minutes)
 $is_online = (strtotime($user['last_active']) > time() - 300) ? true : false;
 
-// Update last_active timestamp on page load
+// Update last_active timestamp
 $update_query = "UPDATE users SET last_active = NOW() WHERE id = ?";
 $update_stmt = $conn->prepare($update_query);
 $update_stmt->bind_param("i", $user_id);
 $update_stmt->execute();
+
+// Fetch all users for the table
+$query = "SELECT id, fullname, email, profile_picture, last_login, is_online, current_device FROM users";
+$result = mysqli_query($conn, $query);
+
+if (!$result) {
+    die("Query Failed: " . mysqli_error($conn));
+}
+
+// Function to format the last login date
+function formatLastLogin($last_login) {
+    if (!$last_login) {
+        return 'Never';
+    }
+    return date('Y-m-d h:i A', strtotime($last_login));
+}
+
+// Function to determine device icon and name based on User-Agent
+function getDeviceInfo($user_agent) {
+    if ($user_agent && preg_match('/Windows|Macintosh|Linux/i', $user_agent)) {
+        return ['icon' => 'desktop', 'name' => 'Desktop'];
+    }
+    if ($user_agent && preg_match('/iPhone|iPad|Android/i', $user_agent)) {
+        return ['icon' => 'phone', 'name' => 'Mobile'];
+    }
+    return ['icon' => 'question-mark-circle', 'name' => 'Unknown'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -34,9 +60,10 @@ $update_stmt->execute();
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Dashboard</title>
+    <title>Admin - Manage Users</title>
     <link rel="icon" type="image/png" href="../assets/images/favicon.ico" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@heroicons/react@2.0.18/24/outline/index.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -75,7 +102,7 @@ $update_stmt->execute();
             class="w-10 h-10 rounded-md"
           />
           <h2 class="text-xl font-bold text-dashboard">
-            <span class="text-red-600">Admin</span> Dashboard
+            <span class="text-red-600">SuperAdmin</span> Dashboard
           </h2>
         </div>
 
@@ -85,7 +112,7 @@ $update_stmt->execute();
             <li>
               <a
                 href="dashboard.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-50 text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -133,7 +160,7 @@ $update_stmt->execute();
             <li>
               <a
                 href="users.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-50 text-primary-600 font-medium transition-all duration-200"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -201,6 +228,30 @@ $update_stmt->execute();
               </a>
             </li>
 
+            <!-- Account Management -->
+            <li>
+              <a
+                href="account_management.php"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="w-5 h-5 text-primary-600"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
+                  />
+                </svg>
+                Account Management
+              </a>
+            </li>
+
             <!-- Logout -->
             <li>
               <a
@@ -218,7 +269,7 @@ $update_stmt->execute();
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
+                    d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0l3-3m0 0-3-3m3 3H9"
                   />
                 </svg>
                 Logout
@@ -231,9 +282,7 @@ $update_stmt->execute();
       <!-- Main content -->
       <div class="flex-1 flex flex-col">
         <!-- Topbar -->
-        <header
-          class="bg-white shadow-sm flex justify-between items-center px-6 py-4"
-        >
+        <header class="bg-white shadow-sm flex justify-between items-center px-6 py-4">
           <div class="flex items-center space-x-4">
             <button
               id="sidebar-toggle"
@@ -255,10 +304,10 @@ $update_stmt->execute();
               </svg>
             </button>
             <h1 class="text-xl font-semibold text-dashboard">
-              Welcome, <?php echo $fullname; ?>!
+              Manage <span class="text-red-600">Users</span>
             </h1>
             <p class="text-gray-600">
-              Manage users, modules, and track progress.
+              View and manage all user accounts in the system.
             </p>
           </div>
           <div class="flex items-center space-x-4">
@@ -309,13 +358,13 @@ $update_stmt->execute();
                   />
                   <div class="ml-3">
                     <p class="text-sm font-semibold text-gray-800"><?php echo $fullname; ?></p>
-                    <p class="text-xs text-gray-500">Admin</p>
+                    <p class="text-xs text-gray-500">SuperAdmin</p>
                   </div>
                 </div>
                 <div class="p-2">
                   <a
                     href="accountsettings.php"
-                    class="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-all duration-200"
+                    class="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-all duration-200"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -340,11 +389,143 @@ $update_stmt->execute();
         </header>
 
         <!-- Main content area -->
-        <main class="flex-1 p-6 overflow-y-auto"></main>
+        <main class="flex-1 p-6 overflow-y-auto">
+          <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Manage Users</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full table-auto border-collapse">
+                <thead>
+                  <tr class="bg-gray-100">
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Profile</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Full Name</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Last Login</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Current Device</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <?php while ($row = mysqli_fetch_assoc($result)) { 
+                    $status_class = $row['is_online'] ? 'bg-green-500' : 'bg-red-500';
+                    $status_text = $row['is_online'] ? 'Online' : 'Offline';
+                    $profile_pic = $row['profile_picture'] ?: '../assets/images/profile-placeholder.png';
+                    $device_info = getDeviceInfo($row['current_device']);
+                    $device_icon = $device_info['icon'];
+                    $device_name = $device_info['name'];
+                  ?>
+                    <tr data-user-id="<?php echo $row['id']; ?>" class="border-t">
+                      <td class="px-4 py-3">
+                        <img
+                          src="<?php echo htmlspecialchars($profile_pic); ?>"
+                          alt="Profile Picture"
+                          class="w-10 h-10 rounded-full object-cover"
+                        />
+                      </td>
+                      <td class="px-4 py-3 text-gray-700"><?php echo htmlspecialchars($row['fullname']); ?></td>
+                      <td class="px-4 py-3 text-gray-700"><?php echo htmlspecialchars($row['email']); ?></td>
+                      <td class="px-4 py-3 flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full <?php echo $status_class; ?>"></span>
+                        <span class="text-gray-700"><?php echo $status_text; ?></span>
+                      </td>
+                      <td class="px-4 py-3 text-gray-700 last-login"><?php echo formatLastLogin($row['last_login']); ?></td>
+                      <td class="px-4 py-3 text-gray-700 flex items-center space-x-2">
+                        <?php if ($device_icon === 'desktop'): ?>
+                          <svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+                          </svg>
+                        <?php elseif ($device_icon === 'phone'): ?>
+                          <svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                          </svg>
+                        <?php else: ?>
+                          <svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                          </svg>
+                        <?php endif; ?>
+                        <span><?php echo htmlspecialchars($device_name); ?></span>
+                      </td>
+                    </tr>
+                  <?php } ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
 
     <script>
+      // Function to format the last login date on the client side
+      function formatLastLogin(last_login) {
+        if (!last_login) {
+          return 'Never';
+        }
+        const date = new Date(last_login);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${year}-${month}-${day} ${hours}:${minutes} ${ampm}`;
+      }
+
+      // Function to determine device icon and name
+      function getDeviceInfo(user_agent) {
+        if (user_agent && user_agent.match(/Windows|Macintosh|Linux/i)) {
+          return { icon: 'desktop', name: 'Desktop' };
+        }
+        if (user_agent && user_agent.match(/iPhone|iPad|Android/i)) {
+          return { icon: 'phone', name: 'Mobile' };
+        }
+        return { icon: 'question-mark-circle', name: 'Unknown' };
+      }
+
+      // Function to fetch and update user data
+      function updateUserTable() {
+        fetch('fetch_users.php')
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            return response.json();
+          })
+          .then(users => {
+            const tableBody = document.getElementById('users-table-body');
+            users.forEach(user => {
+              const row = tableBody.querySelector(`tr[data-user-id="${user.id}"]`);
+              if (row) {
+                // Update status
+                const statusCell = row.cells[3];
+                statusCell.innerHTML = `
+                  <span class="w-3 h-3 rounded-full ${user.status_class}"></span>
+                  <span class="text-gray-700">${user.status}</span>
+                `;
+                // Update last login
+                const lastLoginCell = row.cells[4];
+                lastLoginCell.textContent = formatLastLogin(user.last_login);
+                // Update current device
+                const deviceCell = row.cells[5];
+                const deviceInfo = getDeviceInfo(user.current_device);
+                deviceCell.innerHTML = `
+                  ${deviceInfo.icon === 'desktop' ? '<svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>' : ''}
+                  ${deviceInfo.icon === 'phone' ? '<svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" /></svg>' : ''}
+                  ${deviceInfo.icon === 'question-mark-circle' ? '<svg class="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>' : ''}
+                  <span>${deviceInfo.name}</span>
+                `;
+              }
+            });
+          })
+          .catch(error => console.error('Error fetching user data:', error));
+      }
+
+      // Initial call to update the table
+      updateUserTable();
+
+      // Set interval to update the table every 5 seconds
+      setInterval(updateUserTable, 5000);
+
       // Sidebar toggle
       const sidebar = document.getElementById("sidebar");
       const sidebarToggle = document.getElementById("sidebar-toggle");
@@ -382,3 +563,11 @@ $update_stmt->execute();
     </script>
   </body>
 </html>
+<?php
+if ($result) {
+    mysqli_free_result($result);
+}
+$stmt_user->close();
+$update_stmt->close();
+mysqli_close($conn);
+?>

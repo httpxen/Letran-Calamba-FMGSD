@@ -9,7 +9,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "User") {
   exit();
 }
 
-$lesson_id = $_GET['lesson_id'];
+// Validate lesson_id
+$lesson_id = filter_input(INPUT_GET, 'lesson_id', FILTER_VALIDATE_INT);
+if (!$lesson_id) {
+  header("Location: modules_list.php");
+  exit();
+}
 $user_id = $_SESSION['user_id'];
 
 // Fetch lesson details
@@ -20,7 +25,7 @@ $rowCount = $lesson ? 1 : 0;
 
 // Fetch all lessons in the same module for the progress tracker
 if ($lesson) {
-  $module_id = $lesson['module_id']; // Assumes lessons table has a module_id column
+  $module_id = $lesson['module_id'];
   $lessonsStmt = $pdo->prepare("
     SELECT lessons.id, lessons.title, 
            (SELECT isWatched FROM quiz_results WHERE user_id = :user_id AND lesson_id = lessons.id ORDER BY taken_at DESC LIMIT 1) as is_completed
@@ -45,7 +50,7 @@ $totalQuestions = count($questions);
 $shuffleQuestions = $questions;
 shuffle($shuffleQuestions);
 
-// Check if the user has watched the video for this lesson
+// Check if the user has watched the video
 $watchStmt = $pdo->prepare("
     SELECT isWatched
     FROM quiz_results
@@ -168,11 +173,9 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
                 <div class="relative space-y-6">
                   <?php foreach ($lessons as $index => $tracked_lesson): ?>
                     <div class="relative flex items-start gap-4 group">
-                      <!-- Progress Line -->
                       <?php if ($index < count($lessons) - 1): ?>
                         <div class="absolute left-5 top-12 h-[calc(100%-2.5rem)] w-0.5 bg-gray-200 group-last:hidden <?php echo $tracked_lesson['is_completed'] ? 'bg-primary-600' : ''; ?>"></div>
                       <?php endif; ?>
-                      <!-- Progress Indicator -->
                       <div class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 z-10 <?php echo $tracked_lesson['id'] == $lesson_id ? 'bg-primary-600 shadow-lg scale-110' : ($tracked_lesson['is_completed'] ? 'bg-primary-600' : 'bg-gray-200'); ?>">
                         <?php if ($tracked_lesson['is_completed'] || $tracked_lesson['id'] == $lesson_id): ?>
                           <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -198,14 +201,12 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
                 <div class="video-container bg-white rounded-lg shadow-md p-6 border border-gray-200 <?php echo $isWatched ? 'hidden' : ''; ?>">
                   <?php if ($rowCount > 0): ?>
                     <div class="relative w-full">
-                      <!-- Video Player -->
                       <div class="relative rounded-md overflow-hidden border border-gray-300">
                         <video id="lesson_video" controls controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false;" class="w-full h-auto aspect-video">
                           <source src="<?php echo htmlspecialchars($lesson['video_url']); ?>" type="video/mp4">
                           Your browser does not support the video tag.
                         </video>
                       </div>
-                      <!-- Video Details -->
                       <div class="mt-4">
                         <h3 class="text-lg font-semibold text-dashboard"><?php echo htmlspecialchars($lesson['title'] ?? 'Lesson'); ?></h3>
                         <p class="text-sm text-gray-600 mt-2">Learn about sustainability and its impact on the environment. Complete this video to unlock the quiz.</p>
@@ -214,7 +215,6 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
                             <p id="waiting" class="text-sm text-gray-500">Please watch the video to proceed to the quiz.</p>
                           </div>
                         <?php endif; ?>
-                        <!-- Progress Bar -->
                         <div class="mt-4">
                           <div class="w-full bg-gray-200 rounded-full h-2">
                             <div id="video-progress" class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
@@ -309,11 +309,39 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
       const progressBar = document.getElementById('video-progress');
       const progressText = document.getElementById('progress-text');
 
-      if (!isWatched && video) {
+      // Prevent video seeking
+      if (video) {
+        video.addEventListener('seeking', (e) => {
+          if (video.currentTime > video.played.end(0)) {
+            video.currentTime = video.played.end(0);
+          }
+        });
+
+        // Update isWatched when video ends
         video.addEventListener('ended', () => {
-          videoContainer.classList.add("hidden");
-          quizForm.classList.remove("hidden");
-          if (waitingMsg) waitingMsg.classList.add("hidden");
+          fetch('update_watch_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `lesson_id=<?php echo $lesson_id; ?>&user_id=<?php echo $user_id; ?>`
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              videoContainer.classList.add("hidden");
+              quizForm.classList.remove("hidden");
+              waitingMsg.classList.add("hidden");
+            } else {
+              console.error('Failed to update watch status:', data.message);
+            }
+          })
+          .catch(error => console.error('Error:', error));
+        });
+
+        // Video Progress Bar
+        video.addEventListener('timeupdate', () => {
+          const progress = (video.currentTime / video.duration) * 100;
+          progressBar.style.width = `${progress}%`;
+          progressText.textContent = `${Math.round(progress)}%`;
         });
       }
 
@@ -353,15 +381,6 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
           radio.parentElement.classList.add('bg-primary-50', 'text-primary-600');
         });
       });
-
-      // Video Progress Bar
-      if (video && progressBar && progressText) {
-        video.addEventListener('timeupdate', () => {
-          const progress = (video.currentTime / video.duration) * 100;
-          progressBar.style.width = `${progress}%`;
-          progressText.textContent = `${Math.round(progress)}%`;
-        });
-      }
     });
   </script>
 </body>

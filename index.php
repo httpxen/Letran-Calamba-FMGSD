@@ -251,8 +251,8 @@
                                 <p class="text-blue-800 dark:text-blue-400 font-semibold">– Pedro Reyes, Faculty</p>
                             </div>
                         </div>
-                        <button id="prev" class="absolute left-0 top-1/2 transform -translate-y-1/2 bg-blue-800 dark:bg-blue-700 text-white p-2 rounded-full hover:bg-blue-900 dark:hover:bg-blue-600">❮</button>
-                        <button id="next" class="absolute right-0 top-1/2 transform -translate-y-1/2 bg-blue-800 dark:bg-blue-700 text-white p-2 rounded-full hover:bg-blue-900 dark:hover:bg-blue-600">❯</button>
+                        <button id="prev" class="absolute left-0 top-1/2 transform -translate-y-1/2 bg-transparent dark:bg-transparent text-blue-900 dark:text-white p-2 hover:text-blue-700 dark:hover:text-blue-400">❮</button>
+                        <button id="next" class="absolute right-0 top-1/2 transform -translate-y-1/2 bg-transparent dark:bg-transparent text-blue-900 dark:text-white p-2 hover:text-blue-700 dark:hover:text-blue-400">❯</button>
                     </div>
                 </div>
             </div>  
