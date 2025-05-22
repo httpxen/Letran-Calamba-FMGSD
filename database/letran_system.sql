@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 18, 2025 at 08:12 PM
+-- Generation Time: May 20, 2025 at 04:10 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -17,7 +17,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `ehs_system`
+-- Database: `letran_system`
 --
 
 -- --------------------------------------------------------
@@ -111,7 +111,7 @@ CREATE TABLE `users` (
   `fullname` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('User','Admin') NOT NULL,
+  `role` enum('User','Admin','SuperAdmin') NOT NULL,
   `profile_picture` varchar(255) DEFAULT '../assets/images/profile-placeholder.png',
   `current_device` varchar(255) DEFAULT NULL,
   `last_login` datetime DEFAULT NULL,
@@ -119,7 +119,9 @@ CREATE TABLE `users` (
   `is_online` tinyint(1) DEFAULT 0,
   `last_active` datetime DEFAULT NULL,
   `approval_status` enum('Pending','Approved','Declined') NOT NULL DEFAULT 'Pending',
-  `registered_at` datetime NOT NULL DEFAULT current_timestamp()
+  `registered_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `last_updated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `account_status` enum('Active','Inactive') NOT NULL DEFAULT 'Inactive'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------

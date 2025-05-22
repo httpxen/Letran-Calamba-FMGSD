@@ -201,28 +201,6 @@ function getDeviceInfo($user_agent) {
             </li>
             <li>
               <a
-                href="add_admin.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-primary-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M12 4.5v15M19.5 12h-15"
-                  />
-                </svg>
-                Add New Admin
-              </a>
-            </li>
-            <li>
-              <a
                 href="../logout.php"
                 class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 font-medium transition-all duration-200"
               >

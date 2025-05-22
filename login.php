@@ -20,10 +20,13 @@ if (isset($_SESSION['user_id'])) {
     }
     $_SESSION['last_activity'] = time();
 
-    if ($_SESSION['role'] == "Admin") {
+    // Check role and redirect accordingly
+    if ($_SESSION['role'] == "SuperAdmin") {
+        header("Location: superadmin/dashboard.php");
+    } elseif ($_SESSION['role'] == "Admin") {
         header("Location: admin/dashboard.php");
     } else {
-        // Verify approval status for non-admin users
+        // Verify approval status for User role only
         $sql = "SELECT approval_status FROM users WHERE id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $_SESSION['user_id']);
@@ -53,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format.";
     } else {
-        $sql = "SELECT id, fullname, password, role, approval_status FROM users WHERE email = ?";
+        $sql = "SELECT id, fullname, password, role, approval_status, account_status FROM users WHERE email = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $email);
         $stmt->execute();
@@ -61,7 +64,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $user = $result->fetch_assoc();
 
         if ($user && password_verify($password, $user['password'])) {
-            if ($user['role'] === 'User' && $user['approval_status'] !== 'Approved') {
+            // Check account status first
+            if ($user['account_status'] === 'Inactive') {
+                $error = "Your account is inactive. Please contact support.";
+            } elseif ($user['role'] === 'User' && $user['approval_status'] !== 'Approved') {
+                // Skip approval check for SuperAdmin and Admin roles
                 $error = $user['approval_status'] === 'Pending' 
                     ? "Your account is pending approval. Please wait for admin approval."
                     : "Your account has been declined. Please contact support.";
@@ -83,7 +90,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['profile_picture'] = $user['profile_picture'] ?? '../assets/images/profile-placeholder.png';
                 $_SESSION['last_activity'] = time();
 
-                if ($user['role'] == "Admin") {
+                // Redirect based on role
+                if ($user['role'] == "SuperAdmin") {
+                    header("Location: superadmin/dashboard.php");
+                } elseif ($user['role'] == "Admin") {
                     header("Location: admin/dashboard.php");
                 } else {
                     header("Location: user/dashboard.php");

@@ -9,45 +9,51 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "User") {
   exit();
 }
 
+// Validate module_id
+$module_id = filter_input(INPUT_GET, 'module_id', FILTER_VALIDATE_INT);
+if (!$module_id) {
+  header("Location: modules_list.php");
+  exit();
+}
+
 $user_id = $_SESSION['user_id'];
-$module_id = $_GET['module_id'];
 $lesson_count = 1;
 
-// Get all the lessons for the module
-$lessonStmt = $pdo->prepare("SELECT * FROM lessons WHERE module_id = :module_id");
+// Fetch lessons
+$lessonStmt = $pdo->prepare("SELECT * FROM lessons WHERE module_id = :module_id ORDER BY id");
 $lessonStmt->execute([':module_id' => $module_id]);
 $lessons = $lessonStmt->fetchAll(PDO::FETCH_ASSOC);
 $rowCount = count($lessons);
 
-// Get the most recent quiz result for each lesson by the user (for this module)
+// Fetch latest quiz results for this module
 $latestResultsStmt = $pdo->prepare("
-    SELECT qr1.lesson_id, qr1.isWatched, qr1.isPassed
-    FROM quiz_results qr1
-    INNER JOIN (
-        SELECT lesson_id, MAX(taken_at) as max_taken_at
+    SELECT lesson_id, isWatched, isPassed
+    FROM quiz_results
+    WHERE user_id = :user_id AND lesson_id IN (
+        SELECT id FROM lessons WHERE module_id = :module_id
+    )
+    AND taken_at = (
+        SELECT MAX(taken_at)
         FROM quiz_results
-        WHERE user_id = :user_id
-        GROUP BY lesson_id
-    ) qr2 ON qr1.lesson_id = qr2.lesson_id AND qr1.taken_at = qr2.max_taken_at
-    WHERE qr1.user_id = :user_id
+        WHERE user_id = :user_id AND lesson_id = quiz_results.lesson_id
+    )
 ");
-$latestResultsStmt->execute([':user_id' => $user_id]);
+$latestResultsStmt->execute([':user_id' => $user_id, ':module_id' => $module_id]);
 $latestResults = $latestResultsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Build arrays for watched and failed lessons based on the latest result
 $watchedLessons = [];
 $failedLessons = [];
 foreach ($latestResults as $result) {
-    if ($result['isWatched'] == 1) {
-        $watchedLessons[] = $result['lesson_id'];
-    }
-    if ($result['isWatched'] == 1 && $result['isPassed'] == 0) {
-        $failedLessons[] = $result['lesson_id'];
-    }
+  if ($result['isWatched'] == 1) {
+    $watchedLessons[] = $result['lesson_id'];
+  }
+  if ($result['isWatched'] == 1 && $result['isPassed'] == 0) {
+    $failedLessons[] = $result['lesson_id'];
+  }
 }
 
-// Determine if a lesson should be locked based on previous lessons
-$isPreviousLessonWatched = true; // For Lesson 1, it's always accessible
+// Determine if a lesson should be locked
+$isPreviousLessonWatched = true; // Lesson 1 is always accessible
 ?>
 
 <!DOCTYPE html>
@@ -161,7 +167,7 @@ $isPreviousLessonWatched = true; // For Lesson 1, it's always accessible
               <?php
               $isWatched = in_array($lesson['id'], $watchedLessons);
               $isFailed = in_array($lesson['id'], $failedLessons);
-              $isLocked = !$isPreviousLessonWatched && $lesson_count > 1; // Lock if previous lesson is not watched (except for Lesson 1)
+              $isLocked = !$isPreviousLessonWatched && $lesson_count > 1;
               $title = htmlspecialchars($lesson['title']);
               ?>
 
@@ -208,7 +214,7 @@ $isPreviousLessonWatched = true; // For Lesson 1, it's always accessible
                 <a href="lesson.php?lesson_id=<?= $lesson['id'] ?>" class="lesson-card bg-white rounded-lg shadow-md p-4 flex justify-between items-center hover:shadow-lg transition-shadow duration-200">
                   <div class="flex items-center gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28 0.53v11.38a.75.75 0 0 1-1.28 0.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
                     </svg>
                     <div>
                       <h3 class="text-base font-semibold text-gray-800">Lesson <?= $lesson_count ?> - <?= $title ?></h3>
@@ -218,9 +224,7 @@ $isPreviousLessonWatched = true; // For Lesson 1, it's always accessible
                   <span class="px-2 py-1 text-xs font-medium text-primary-600 bg-primary-50 rounded">Available</span>
                 </a>
               <?php endif; ?>
-
               <?php
-              // Update the $isPreviousLessonWatched for the next iteration
               $isPreviousLessonWatched = $isWatched && !$isFailed;
               $lesson_count++;
               ?>
@@ -266,7 +270,7 @@ $isPreviousLessonWatched = true; // For Lesson 1, it's always accessible
       message.classList.remove('hidden');
       setTimeout(() => {
         message.classList.add('hidden');
-      }, 3000); // Hide after 3 seconds
+      }, 3000);
     }
   </script>
 </body>

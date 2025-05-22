@@ -3,15 +3,36 @@ session_start();
 require '../includes/db.php';
 require '../includes/functions.php';
 
-$lesson_id = $_GET['lesson_id'];
-$lessonStmt = $pdo->prepare("SELECT * FROM lessons WHERE id = :lesson_id");
+// Authentication check
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "Admin") {
+    header("Location: ../login.php");
+    exit();
+}
+
+$lesson_id = isset($_GET['lesson_id']) ? (int)$_GET['lesson_id'] : 0;
+$quiz_id = isset($_GET['quiz_id']) ? (int)$_GET['quiz_id'] : 0;
+
+// Fetch lesson
+$lessonStmt = $pdo->prepare("SELECT l.*, m.title AS module_title FROM lessons l JOIN modules m ON l.module_id = m.id WHERE l.id = :lesson_id");
 $lessonStmt->execute([':lesson_id' => $lesson_id]);
 $lesson = $lessonStmt->fetch(PDO::FETCH_ASSOC);
 
-$quiz_id = $_GET['quiz_id'];
+if (!$lesson) {
+    $_SESSION['error_message'] = "Lesson not found.";
+    header("Location: edit_quizzes.php?lesson_id=$lesson_id");
+    exit();
+}
+
+// Fetch quiz
 $quizStmt = $pdo->prepare("SELECT * FROM quizzes WHERE id = :quiz_id");
 $quizStmt->execute([':quiz_id' => $quiz_id]);
 $quiz = $quizStmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$quiz) {
+    $_SESSION['error_message'] = "Quiz not found.";
+    header("Location: edit_quizzes.php?lesson_id=$lesson_id");
+    exit();
+}
 
 $errors = [];
 
@@ -24,21 +45,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $correct_option = filter_input(INPUT_POST, 'correct_option', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
     $status = filter_input(INPUT_POST, 'status', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
+    // Validate inputs
     if (empty($question) || empty($option_a) || empty($option_b) || empty($option_c) || empty($option_d) || empty($correct_option) || empty($status)) {
-        $errors['required'] = 'All fields are required';
+        $errors['required'] = 'All fields are required.';
+    } elseif (!in_array($correct_option, ['A', 'B', 'C', 'D'])) {
+        $errors['correct_option'] = 'Invalid correct option selected.';
+    } elseif (!in_array($status, ['active', 'inactive'])) {
+        $errors['status'] = 'Invalid status selected.';
     }
 
     if (empty($errors)) {
         try {
-            $stmt = $pdo->prepare("UPDATE quizzes 
-                                  SET question = :question,
-                                      option_a = :option_a,
-                                      option_b = :option_b,
-                                      option_c = :option_c,
-                                      option_d = :option_d,
-                                      correct_option = :correct_option,
-                                      status = :status
-                                  WHERE id = :quiz_id");
+            $stmt = $pdo->prepare("
+                UPDATE quizzes 
+                SET question = :question,
+                    option_a = :option_a,
+                    option_b = :option_b,
+                    option_c = :option_c,
+                    option_d = :option_d,
+                    correct_option = :correct_option,
+                    status = :status
+                WHERE id = :quiz_id
+            ");
             $updated = $stmt->execute([
                 ':question' => $question,
                 ':option_a' => $option_a,
@@ -50,15 +78,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':quiz_id' => $quiz_id,
             ]);
 
-            if ($updated) {
-                $_SESSION['success_message'] = 'Quiz updated successfully';
+            // Debug: Log the update attempt
+            error_log("Update Quiz ID: $quiz_id, Status: $status, Rows Affected: " . $stmt->rowCount());
+
+            if ($updated && $stmt->rowCount() > 0) {
+                $_SESSION['success_message'] = 'Quiz updated successfully.';
                 header("Location: edit_quizzes.php?lesson_id={$lesson_id}");
                 exit();
             } else {
-                $errors['database'] = 'Failed to update quiz';
+                $errors['database'] = 'Failed to update quiz. No changes made.';
             }
         } catch (PDOException $e) {
             $errors['database'] = 'Database error: ' . $e->getMessage();
+            error_log("Quiz Update Error: " . $e->getMessage());
         }
     }
 }
@@ -87,6 +119,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         },
                         dashboard: "#12234e",
                     },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+                    },
                 },
             },
         };
@@ -96,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-lg transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 md:static md:shadow-none">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-soft transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 md:static md:shadow-none">
             <div class="flex items-center space-x-3 p-6 border-b">
                 <img src="../assets/images/favicon.ico" alt="Logo" class="w-10 h-10 rounded-md">
                 <h2 class="text-xl font-bold text-dashboard"><span class="text-red-600">Admin</span> Dashboard</h2>
@@ -144,14 +179,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </a>
                     </li>
                     <li>
-                        <a href="add_admin.php" class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-colors duration-200">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15M19.5 12h-15" />
-                            </svg>
-                            Add New Admin
-                        </a>
-                    </li>
-                    <li>
                         <a href="../logout.php" class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 font-medium transition-colors duration-200">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
@@ -166,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Main content -->
         <div class="flex-1 flex flex-col">
             <!-- Topbar -->
-            <header class="bg-white shadow-sm flex justify-between items-center px-6 py-4">
+            <header class="bg-white shadow-soft flex justify-between items-center px-6 py-4">
                 <div class="flex items-center space-x-4">
                     <button id="sidebar-toggle" class="md:hidden text-gray-600 hover:text-primary-600 focus:outline-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -181,16 +208,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <main class="flex-1 p-6 overflow-y-auto">
                 <div class="max-w-7xl mx-auto">
                     <?php if (isset($errors['database'])) : ?>
-                        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl"><?php echo htmlspecialchars($errors['database']); ?></div>
+                        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl"><?= htmlspecialchars($errors['database']); ?></div>
                     <?php elseif (isset($errors['required'])) : ?>
-                        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl"><?php echo htmlspecialchars($errors['required']); ?></div>
+                        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl"><?= htmlspecialchars($errors['required']); ?></div>
+                    <?php elseif (isset($errors['correct_option'])) : ?>
+                        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl"><?= htmlspecialchars($errors['correct_option']); ?></div>
+                    <?php elseif (isset($errors['status'])) : ?>
+                        <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl"><?= htmlspecialchars($errors['status']); ?></div>
                     <?php elseif (isset($_SESSION['success_message'])) : ?>
-                        <div class="mb-6 p-4 bg-green-50 text-green-600 rounded-xl"><?php echo htmlspecialchars($_SESSION['success_message']); ?></div>
+                        <div class="mb-6 p-4 bg-green-50 text-green-600 rounded-xl"><?= htmlspecialchars($_SESSION['success_message']); ?></div>
                         <?php unset($_SESSION['success_message']); ?>
                     <?php endif; ?>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <!-- Form Section -->
-                        <div class="bg-white rounded-2xl shadow-md p-8">
+                        <div class="bg-white rounded-2xl shadow-soft p-8">
                             <h2 class="text-2xl font-bold text-dashboard mb-6">Update Quiz Question</h2>
                             <form id="quiz-form" method="POST" class="space-y-6">
                                 <input type="hidden" name="quiz_id" value="<?= htmlspecialchars($quiz_id) ?>">
@@ -242,8 +273,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </form>
                         </div>
                         <!-- Preview Section -->
-                        <div class="bg-white rounded-2xl shadow-md p-8 lg:block hidden">
-                            <h2 class="text-2xl font-bold text-dashboard mb-6">Quiz Preview</h bagian</h2>
+                        <div class="bg-white rounded-2xl shadow-soft p-8 lg:block hidden">
+                            <h2 class="text-2xl font-bold text-dashboard mb-6">Quiz Preview</h2>
                             <div id="quiz-preview" class="bg-gray-50 rounded-xl p-6">
                                 <p id="preview-question" class="text-sm font-medium text-gray-700 mb-2"><?php echo htmlspecialchars($quiz['question'] ?? 'Enter question text'); ?></p>
                                 <ul id="preview-options" class="space-y-2 text-sm text-gray-600">
@@ -253,6 +284,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <li id="preview-option-d" class="<?php echo ($quiz['correct_option'] === 'D') ? 'text-green-600 font-medium' : ''; ?>">D: <?php echo htmlspecialchars($quiz['option_d'] ?? 'Option D'); ?></li>
                                 </ul>
                                 <p id="preview-status" class="mt-4 text-sm text-gray-600">Status: <span class="capitalize"><?php echo htmlspecialchars($quiz['status'] ?? 'Active'); ?></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Confirmation Modal -->
+                    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50" role="dialog" aria-labelledby="modal-title">
+                        <div class="bg-white rounded-xl shadow-soft p-6 w-full max-w-md transform transition-all duration-200">
+                            <h3 id="modal-title" class="text-lg font-semibold text-dashboard mb-4">Confirm Update</h3>
+                            <p class="text-sm text-gray-600 mb-6">Are you sure you want to update this quiz?</p>
+                            <div class="flex justify-end space-x-4">
+                                <button id="modal-cancel" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 font-medium transition-all duration-200">Cancel</button>
+                                <button id="modal-confirm" class="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 font-medium transition-all duration-200">Confirm</button>
                             </div>
                         </div>
                     </div>
@@ -344,11 +386,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         correctSelect.addEventListener('input', updatePreview);
         statusSelect.addEventListener('input', updatePreview);
 
-        // Form validation and submission
+        // Form validation and submission with modal
         const form = document.getElementById('quiz-form');
-        const updateQuizBtn = document.getElementById('update-quiz-btn');
+        const updateQuizBtn = document.getElementById('update_quiz-btn');
+        const confirmModal = document.getElementById('confirm-modal');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
 
         form.addEventListener('submit', (e) => {
+            e.preventDefault(); // Prevent default form submission
+
             let hasError = false;
             const question = questionInput.value.trim();
             const optionA = optionAInput.value.trim();
@@ -390,19 +437,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (hasError) {
-                e.preventDefault();
                 updateQuizBtn.textContent = 'Update Quiz';
                 updateQuizBtn.disabled = false;
             } else {
-                const confirmation = confirm('Are you sure you want to update this quiz?');
-                if (!confirmation) {
-                    e.preventDefault();
-                    updateQuizBtn.textContent = 'Update Quiz';
-                    updateQuizBtn.disabled = false;
-                } else {
-                    updateQuizBtn.textContent = 'Updating...';
-                    updateQuizBtn.disabled = true;
-                }
+                // Show the modal
+                confirmModal.classList.remove('hidden');
+                modalConfirm.focus(); // Set focus to Confirm button for accessibility
+            }
+        });
+
+        // Modal Cancel button
+        modalCancel.addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+            updateQuizBtn.textContent = 'Update Quiz';
+            updateQuizBtn.disabled = false;
+        });
+
+        // Modal Confirm button
+        modalConfirm.addEventListener('click', () => {
+            confirmModal.classList.add('hidden');
+            updateQuizBtn.textContent = 'Updating...';
+            updateQuizBtn.disabled = true;
+            form.submit(); // Programmatically submit the form
+        });
+
+        // Close modal on clicking outside
+        confirmModal.addEventListener('click', (e) => {
+            if (e.target === confirmModal) {
+                confirmModal.classList.add('hidden');
+                updateQuizBtn.textContent = 'Update Quiz';
+                updateQuizBtn.disabled = false;
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !confirmModal.classList.contains('hidden')) {
+                confirmModal.classList.add('hidden');
+                updateQuizBtn.textContent = 'Update Quiz';
+                updateQuizBtn.disabled = false;
             }
         });
 
