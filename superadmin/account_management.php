@@ -74,16 +74,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $target_user_id = (int)$_POST['user_id'];
         $action = $_POST['action'];
         $new_status = $action === 'activate' ? 'Active' : 'Inactive';
-        $update_status_query = "UPDATE users SET account_status = ? WHERE id = ? AND id != ?";
-        $update_status_stmt = $conn->prepare($update_status_query);
-        $update_status_stmt->bind_param("sii", $new_status, $target_user_id, $user_id);
-        if ($update_status_stmt->execute()) {
-            $_SESSION['success_message'] = "User " . ($action === 'activate' ? 'activated' : 'deactivated') . " successfully!";
+
+        // Prevent deactivating the logged-in SuperAdmin
+        if ($target_user_id === $user_id) {
+            $_SESSION['error_message'] = "You cannot modify your own account status.";
         } else {
-            $_SESSION['error_message'] = "Failed to update user status.";
+            $update_status_query = "UPDATE users SET account_status = ? WHERE id = ?";
+            $update_status_stmt = $conn->prepare($update_status_query);
+            if ($update_status_stmt === false) {
+                error_log("Prepare failed: " . $conn->error);
+                $_SESSION['error_message'] = "Database error occurred. Please try again.";
+            } else {
+                $update_status_stmt->bind_param("si", $new_status, $target_user_id);
+                if ($update_status_stmt->execute()) {
+                    $_SESSION['success_message'] = "User " . ($action === 'activate' ? 'activated' : 'deactivated') . " successfully!";
+                } else {
+                    error_log("Update failed: " . $update_status_stmt->error);
+                    $_SESSION['error_message'] = "Failed to update user status: " . $update_status_stmt->error;
+                }
+                $update_status_stmt->close();
+            }
         }
-        $update_status_stmt->close();
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        // Only regenerate CSRF token if the action was successful
+        if (isset($_SESSION['success_message'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
     }
     header("Location: account_management.php?page=$page" . ($search ? "&search=" . urlencode($search) : ""));
     exit();
@@ -233,7 +248,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <div class="p-2">
                                 <a href="accountsettings.php" class="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-all duration-200">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-7.5 0h7.5m-12-6h3.75m-3.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-9.75 0h9.75" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0m-7.5 0h7.5m-12-6h3.75m-3.75 0a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0m-9.75 0h9.75" />
                                     </svg>
                                     Account Settings
                                 </a>
@@ -289,26 +304,30 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                     <tr class="hover:bg-gray-50 transition-all duration-200">
                                         <td class="px-6 py-4">
                                             <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                                                <img src="<?php echo htmlspecialchars($row['profile_picture'] ?: '../assets/images/profile-placeholder.png'); ?>" alt="Profile" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\'text-gray-500 text-xs\'>No Image</span>';" />
+                                                <img src="<?php echo htmlspecialchars($row['profile_picture'] ?: '../assets/images/profile-placeholder.png'); ?>" alt="Profile" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\"text-gray-500 text-xs\">No Image</span>';" />
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['fullname']); ?></td>
                                         <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['email']); ?></td>
-                                        <td class="px-6 py-4 text-sm text-gray-900 flex items-center space-x-2">
-                                            <?php if ($row['role'] === 'SuperAdmin'): ?>
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-primary-600">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 01 3.598 6 11.99 11.99 0 00 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-                                                </svg>
-                                            <?php elseif ($row['role'] === 'Admin'): ?>
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-blue-500">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
-                                                </svg>
-                                            <?php else: ?>
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-gray-500">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0ZM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                                                </svg>
-                                            <?php endif; ?>
-                                            <span><?php echo htmlspecialchars($row['role']); ?></span>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            <div class="flex items-center">
+                                                <div class="w-6 flex-shrink-0">
+                                                    <?php if ($row['role'] === 'SuperAdmin'): ?>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-primary-600">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                                                        </svg>
+                                                    <?php elseif ($row['role'] === 'Admin'): ?>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-blue-500">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+                                                        </svg>
+                                                    <?php else: ?>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-gray-500">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0ZM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                                        </svg>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <span class="ml-2"><?php echo htmlspecialchars($row['role']); ?></span>
+                                            </div>
                                         </td>
                                         <td class="px-6 py-4 text-sm">
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?php echo $row['approval_status'] === 'Approved' ? 'bg-green-100 text-green-800' : ($row['approval_status'] === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'); ?>">
@@ -352,7 +371,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                                     </button>
                                                 </form>
                                                 <button onclick="openDeleteModal(<?php echo $row['id']; ?>)" class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-200">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-insights: 0 0 24 24" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                                     </svg>
                                                     Delete
