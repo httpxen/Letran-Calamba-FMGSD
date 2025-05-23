@@ -517,7 +517,7 @@ $profile_pic = isset($user['profile_picture']) && !empty($user['profile_picture'
                             <form method="POST" class="space-y-6">
                                 <!-- Current Password -->
                                 <div class="space-y-2">
-                                    <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password</label>
+                                    <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password <span class="text-red-500">*</span></label>
                                     <div class="relative">
                                         <input
                                             type="password"
@@ -533,7 +533,7 @@ $profile_pic = isset($user['profile_picture']) && !empty($user['profile_picture'
 
                                 <!-- New Password -->
                                 <div class="space-y-2">
-                                    <label for="new_password" class="block text-sm font-medium text-gray-700">New Password</label>
+                                    <label for="new_password" class="block text-sm font-medium text-gray-700">New Password <span class="text-red-500">*</span></label>
                                     <div class="relative">
                                         <input
                                             type="password"
@@ -554,7 +554,7 @@ $profile_pic = isset($user['profile_picture']) && !empty($user['profile_picture'
 
                                 <!-- Confirm Password -->
                                 <div class="space-y-2">
-                                    <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                                    <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New Password <span class="text-red-500">*</span></label>
                                     <div class="relative">
                                         <input
                                             type="password"
