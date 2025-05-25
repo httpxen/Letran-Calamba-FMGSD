@@ -49,18 +49,6 @@ $totalQuestions = count($questions);
 // Shuffle questions
 $shuffleQuestions = $questions;
 shuffle($shuffleQuestions);
-
-// Check if the user has watched the video
-$watchStmt = $pdo->prepare("
-    SELECT isWatched
-    FROM quiz_results
-    WHERE user_id = :user_id AND lesson_id = :lesson_id
-    ORDER BY taken_at DESC
-    LIMIT 1
-");
-$watchStmt->execute([':user_id' => $user_id, ':lesson_id' => $lesson_id]);
-$watchResult = $watchStmt->fetch(PDO::FETCH_ASSOC);
-$isWatched = $watchResult && $watchResult['isWatched'] == 1;
 ?>
 
 <!DOCTYPE html>
@@ -85,12 +73,31 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
               700: "#4338ca",
             },
             dashboard: "#12234e",
+            progress: {
+              100: "#eef2ff",
+              200: "#e0e7ff",
+              300: "#c7d2fe",
+              500: "#6366f1",
+            },
           },
         },
       },
     };
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .fade {
+      transition: opacity 0.3s ease-in-out;
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans antialiased">
   <div class="flex h-screen overflow-hidden">
@@ -156,72 +163,82 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
       <main class="flex-1 p-6 overflow-y-auto bg-gray-100">
         <div class="max-w-7xl mx-auto">
           <!-- Loader -->
-          <div class="loader-wrapper hidden fixed inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-50">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-primary-600 border-solid"></div>
+          <div class="loader-wrapper fixed inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-50 pointer-events-none">
+            <div class="animate-pulse rounded-full h-12 w-12 bg-primary-600"></div>
           </div>
 
-          <?php if ($quizItem > 0): ?>
-            <div class="flex flex-col lg:flex-row gap-6">
-              <!-- Lesson Progress Tracker -->
-              <div class="w-full lg:w-1/4 bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-dashboard mb-6 flex items-center gap-2">
-                  <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Lesson Progress
-                </h3>
-                <div class="relative space-y-6">
-                  <?php foreach ($lessons as $index => $tracked_lesson): ?>
-                    <div class="relative flex items-start gap-4 group">
-                      <?php if ($index < count($lessons) - 1): ?>
-                        <div class="absolute left-5 top-12 h-[calc(100%-2.5rem)] w-0.5 bg-gray-200 group-last:hidden <?php echo $tracked_lesson['is_completed'] ? 'bg-primary-600' : ''; ?>"></div>
-                      <?php endif; ?>
-                      <div class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 z-10 <?php echo $tracked_lesson['id'] == $lesson_id ? 'bg-primary-600 shadow-lg scale-110' : ($tracked_lesson['is_completed'] ? 'bg-primary-600' : 'bg-gray-200'); ?>">
-                        <?php if ($tracked_lesson['is_completed'] || $tracked_lesson['id'] == $lesson_id): ?>
-                          <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clip-rule="evenodd" />
-                          </svg>
-                        <?php else: ?>
-                          <span class="text-gray-600 font-semibold"><?php echo $index + 1; ?></span>
-                        <?php endif; ?>
-                      </div>
-                      <div class="flex-1 pt-2">
-                        <p class="text-sm font-medium <?php echo $tracked_lesson['id'] == $lesson_id ? 'text-primary-600 font-bold' : 'text-gray-800'; ?> group-hover:text-primary-600 transition-colors duration-300"><?php echo htmlspecialchars($tracked_lesson['title']); ?></p>
-                        <?php if ($tracked_lesson['id'] == $lesson_id): ?>
-                          <p class="text-xs text-primary-600 mt-1 font-medium">Now Playing</p>
-                        <?php endif; ?>
-                      </div>
-                    </div>
-                  <?php endforeach; ?>
-                </div>
-              </div>
+          <div class="lesson-quiz-container flex flex-col lg:flex-row gap-6">
 
-              <!-- Video Section -->
-              <div class="w-full lg:w-3/4">
-                <div class="video-container bg-white rounded-lg shadow-md p-6 border border-gray-200 <?php echo $isWatched ? 'hidden' : ''; ?>">
+            <!-- Lesson Progress Tracker -->
+            <div class="w-full lg:w-1/4 bg-white rounded-xl shadow-md p-4 border border-gray-200">
+              <h3 class="text-lg font-semibold text-progress-500 mb-4 flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Lesson Progress
+              </h3>
+              <div class="relative space-y-6">
+                <?php foreach ($lessons as $index => $tracked_lesson): ?>
+                  <div class="relative flex items-start gap-4">
+                    <!-- Connector Line -->
+                    <?php if ($index < count($lessons) - 1): ?>
+                      <div class="absolute left-3 top-[2.25rem] h-[3.25rem] w-1 bg-gray-200"></div>
+                    <?php endif; ?>
+                    <!-- Progress Circle -->
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-medium <?php echo $tracked_lesson['id'] == $lesson_id ? 'bg-progress-500 text-white' : ($tracked_lesson['is_completed'] ? 'bg-progress-500 text-white' : ''); ?>">
+                      <?php if ($tracked_lesson['is_completed'] || $tracked_lesson['id'] == $lesson_id): ?>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      <?php else: ?>
+                        <span><?php echo $index + 1; ?></span>
+                      <?php endif; ?>
+                    </div>
+                    <!-- Lesson Title and Status -->
+                    <div class="flex-1">
+                      <p class="text-sm font-medium text-gray-800 <?php echo $tracked_lesson['id'] == $lesson_id ? 'text-progress-500' : ''; ?> line-clamp-2"><?php echo htmlspecialchars($tracked_lesson['title']); ?></p>
+                      <?php if ($tracked_lesson['id'] == $lesson_id): ?>
+                        <span class="inline-flex items-center mt-1 px-2 py-1 text-xs font-medium text-red-500 bg-progress-100 rounded-full">
+                          <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span> Now Playing
+                        </span>
+                      <?php elseif ($tracked_lesson['is_completed']): ?>
+                        <span class="inline-flex items-center mt-1 px-2 py-1 text-green-600 bg-green-50 text-xs font-medium rounded-full">
+                          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clip-rule="evenodd" />
+                          </svg> Completed
+                        </span>
+                      <?php else: ?>
+                        <span class="inline-flex items-center mt-1 px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full">
+                          <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg> Not Started
+                        </span>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            </div>
+
+            <!-- Video and Quiz Container -->
+            <div class="w-full lg:w-3/4">
+              <?php if ($quizItem > 0): ?>
+                <div class="video-container bg-white rounded-lg shadow-md p-6 border border-gray-200 fade visible relative">
                   <?php if ($rowCount > 0): ?>
-                    <div class="relative w-full">
-                      <div class="relative rounded-md overflow-hidden border border-gray-300">
-                        <video id="lesson_video" controls controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false;" class="w-full h-auto aspect-video">
-                          <source src="<?php echo htmlspecialchars($lesson['video_url']); ?>" type="video/mp4">
-                          Your browser does not support the video tag.
-                        </video>
-                      </div>
-                      <div class="mt-4">
-                        <h3 class="text-lg font-semibold text-dashboard"><?php echo htmlspecialchars($lesson['title'] ?? 'Lesson'); ?></h3>
-                        <p class="text-sm text-gray-600 mt-2">Learn about sustainability and its impact on the environment. Complete this video to unlock the quiz.</p>
-                        <?php if (!$isWatched): ?>
-                          <div class="mt-3">
-                            <p id="waiting" class="text-sm text-gray-500">Please watch the video to proceed to the quiz.</p>
-                          </div>
-                        <?php endif; ?>
-                        <div class="mt-4">
-                          <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div id="video-progress" class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                          </div>
-                          <p class="text-xs text-gray-600 mt-1">Progress: <span id="progress-text">0%</span></p>
-                        </div>
-                      </div>
+                    <div class="relative rounded-md overflow-hidden border border-gray-300">
+                      <video id="lesson_video" controls controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false;" class="w-full h-auto aspect-video">
+                        <source src="<?= htmlspecialchars($lesson['video_url']) ?>" type="video/mp4">
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                    <!-- Proceed to Quiz Button (Initially Hidden) -->
+                    <div id="proceed-to-quiz" class="absolute bottom-4 right-4 hidden fade">
+                      <button id="proceed-button" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 transition-colors duration-200" aria-label="Take quiz after watching the lesson video">
+                        Take Quiz
+                      </button>
+                      <a href="modules_list.php" class="ml-4 px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors duration-200">
+                        Back to Modules
+                      </a>
                     </div>
                   <?php else: ?>
                     <div class="text-center py-12">
@@ -231,18 +248,17 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
                   <?php endif; ?>
                 </div>
 
-                <!-- Quiz Section -->
-                <div id="quiz-container" class="quiz-container bg-white rounded-lg shadow-md p-6 <?php echo $isWatched ? '' : 'hidden'; ?>">
-                  <h3 class="text-lg font-semibold text-gray-800 mb-4"><?php echo $totalQuestions; ?> Questions</h3>
+                <div id="quiz-container" class="quiz-container bg-white rounded-lg shadow-md p-6 hidden fade">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-4"><?= $totalQuestions ?> Questions</h3>
                   <form action="handle_quiz_submit.php" method="POST" id="quiz-form">
-                    <input type="hidden" name="lesson_id" value="<?php echo $lesson_id; ?>">
+                    <input type="hidden" name="lesson_id" value="<?= $lesson_id ?>">
                     <?php foreach ($shuffleQuestions as $index => $question): ?>
                       <div class="questions-container mb-6">
-                        <p class="text-base font-medium text-gray-800 mb-3"><?php echo ($index + 1) . '. ' . htmlspecialchars($question['question']); ?></p>
+                        <p class="text-base font-medium text-gray-800 mb-3"><?= ($index + 1) . '. ' . htmlspecialchars($question['question']) ?></p>
                         <?php foreach (['A', 'B', 'C', 'D'] as $letter): ?>
                           <label class="option flex items-center gap-2 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors duration-200">
-                            <input type="radio" name="answers[<?php echo $question['id']; ?>]" value="<?php echo $letter; ?>" class="text-primary-600 focus:ring-primary-600">
-                            <span class="text-sm text-gray-700"><?php echo $letter; ?>. <?php echo htmlspecialchars($question["option_" . strtolower($letter)]); ?></span>
+                            <input type="radio" name="answers[<?= $question['id'] ?>]" value="<?= $letter ?>" class="text-primary-600 focus:ring-primary-600">
+                            <span class="text-sm text-gray-700"><?= $letter ?>. <?= htmlspecialchars($question["option_" . strtolower($letter)]) ?></span>
                           </label>
                         <?php endforeach; ?>
                       </div>
@@ -267,13 +283,17 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
                     </div>
                   </div>
                 </div>
-              </div>
+
+                <div id="waiting" class="text-center text-sm text-gray-500 mt-4">
+                  Please watch the video to proceed to the quiz.
+                </div>
+              <?php else: ?>
+                <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                  <p class="text-gray-600 text-lg">This lesson doesn't have any quiz.</p>
+                </div>
+              <?php endif; ?>
             </div>
-          <?php else: ?>
-            <div class="bg-white rounded-lg shadow-md p-6 text-center">
-              <p class="text-gray-600 text-lg">This lesson doesn't have any quiz.</p>
-            </div>
-          <?php endif; ?>
+          </div>
         </div>
       </main>
     </div>
@@ -305,44 +325,28 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
       const videoContainer = document.querySelector('.video-container');
       const quizForm = document.getElementById('quiz-container');
       const waitingMsg = document.getElementById('waiting');
-      const isWatched = <?php echo json_encode($isWatched); ?>;
-      const progressBar = document.getElementById('video-progress');
-      const progressText = document.getElementById('progress-text');
+      const proceedContainer = document.getElementById('proceed-to-quiz');
+      const proceedButton = document.getElementById('proceed-button');
 
-      // Prevent video seeking
       if (video) {
-        video.addEventListener('seeking', (e) => {
-          if (video.currentTime > video.played.end(0)) {
-            video.currentTime = video.played.end(0);
-          }
-        });
-
-        // Update isWatched when video ends
         video.addEventListener('ended', () => {
-          fetch('update_watch_status.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `lesson_id=<?php echo $lesson_id; ?>&user_id=<?php echo $user_id; ?>`
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              videoContainer.classList.add("hidden");
-              quizForm.classList.remove("hidden");
-              waitingMsg.classList.add("hidden");
-            } else {
-              console.error('Failed to update watch status:', data.message);
-            }
-          })
-          .catch(error => console.error('Error:', error));
+          setTimeout(() => {
+            waitingMsg.classList.add("hidden");
+            proceedContainer.classList.remove("hidden");
+            proceedContainer.classList.add("visible");
+          }, 1000);
         });
 
-        // Video Progress Bar
-        video.addEventListener('timeupdate', () => {
-          const progress = (video.currentTime / video.duration) * 100;
-          progressBar.style.width = `${progress}%`;
-          progressText.textContent = `${Math.round(progress)}%`;
-        });
+        if (proceedButton) {
+          proceedButton.addEventListener('click', () => {
+            videoContainer.classList.remove("visible");
+            videoContainer.classList.add("hidden");
+            quizForm.classList.remove("hidden");
+            quizForm.classList.add("visible");
+            proceedContainer.classList.remove("visible");
+            proceedContainer.classList.add("hidden");
+          });
+        }
       }
 
       // Loader
@@ -350,7 +354,7 @@ $isWatched = $watchResult && $watchResult['isWatched'] == 1;
       if (loader) {
         setTimeout(() => {
           loader.classList.add('hidden');
-        }, 1500);
+        }, 500); // Reduced to 0.5 seconds
       }
 
       // Submit button and modal

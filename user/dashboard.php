@@ -67,7 +67,7 @@ $update_stmt->execute();
       <!-- Sidebar -->
       <aside
         id="sidebar"
-        class="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-lg transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 md:static md:shadow-none"
+        class="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-lg transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 md:static md:shadow-none flex flex-col min-h-full"
       >
         <div class="flex items-center space-x-3 p-6 border-b">
           <img
@@ -80,7 +80,7 @@ $update_stmt->execute();
           </h2>
         </div>
 
-        <nav class="mt-6">
+        <nav class="mt-6 flex-grow">
           <ul class="space-y-1 px-4">
             <!-- Dashboard -->
             <li>
@@ -179,6 +179,11 @@ $update_stmt->execute();
             </li>
           </ul>
         </nav>
+
+        <!-- Version Footer -->
+        <div class="p-4 border-t border-gray-100">
+          <p class="text-xs text-gray-500">Version 1.0.0</p>
+        </div>
       </aside>
 
       <!-- Main content -->

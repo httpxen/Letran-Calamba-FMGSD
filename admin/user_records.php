@@ -24,7 +24,7 @@ $moduleTitles = $moduleStmt->fetchAll(PDO::FETCH_COLUMN);
 $lessonStmt = $pdo->query("SELECT DISTINCT l.title FROM lessons l INNER JOIN quiz_results qr ON qr.lesson_id = l.id");
 $lessonTitles = $lessonStmt->fetchAll(PDO::FETCH_COLUMN);
 
-// Build dynamic SQL
+// Build dynamic SQL with latest quiz_results
 $sql = "
     SELECT 
         u.fullname AS user_name,
@@ -45,7 +45,12 @@ $sql = "
         qr.totalItems,
         qr.isPassed,
         qr.taken_at
-    FROM quiz_results qr
+    FROM (
+        SELECT user_id, lesson_id, MAX(taken_at) AS latest_taken_at
+        FROM quiz_results
+        GROUP BY user_id, lesson_id
+    ) latest
+    INNER JOIN quiz_results qr ON qr.user_id = latest.user_id AND qr.lesson_id = latest.lesson_id AND qr.taken_at = latest.latest_taken_at
     INNER JOIN users u ON qr.user_id = u.id
     INNER JOIN lessons l ON qr.lesson_id = l.id
     INNER JOIN modules m ON l.module_id = m.id
@@ -90,6 +95,9 @@ $sql .= " ORDER BY u.fullname, m.title, l.title, q.id";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Debug: Log raw results (uncomment to use)
+// error_log("Raw quiz results: " . print_r($results, true));
 ?>
 
 <!DOCTYPE html>
@@ -396,14 +404,43 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                                         </td>
                                                                         <td class="py-3 px-4 text-center group relative">
                                                                             <div class="text-xs">
-                                                                                <div>Score: <?= $data['quiz_result']['score'] . '/' . $data['quiz_result']['totalItems']; ?></div>
-                                                                                <div>Status: <?= $data['quiz_result']['isPassed']
-                                                                                    ? '<span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">Passed</span>'
-                                                                                    : '<span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">Failed</span>'; ?></div>
-                                                                                <div>Taken: <?= date('M j, Y', strtotime($data['quiz_result']['taken_at'])); ?></div>
+                                                                                <div>
+                                                                                    Score: 
+                                                                                    <?php 
+                                                                                    if ($data['quiz_result']['score'] !== null && $data['quiz_result']['totalItems'] > 0) {
+                                                                                        echo htmlspecialchars($data['quiz_result']['score'] . '/' . $data['quiz_result']['totalItems']); 
+                                                                                    } else {
+                                                                                        echo 'N/A';
+                                                                                    }
+                                                                                    ?>
+                                                                                </div>
+                                                                                <div>
+                                                                                    Status: 
+                                                                                    <?php 
+                                                                                    if ($data['quiz_result']['isPassed'] !== null) {
+                                                                                        echo $data['quiz_result']['isPassed']
+                                                                                            ? '<span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">Passed</span>'
+                                                                                            : '<span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">Failed</span>';
+                                                                                    } else {
+                                                                                        echo '<span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">Not Evaluated</span>';
+                                                                                    }
+                                                                                    ?>
+                                                                                </div>
+                                                                                <div>
+                                                                                    Taken: 
+                                                                                    <?php 
+                                                                                    echo $data['quiz_result']['taken_at'] 
+                                                                                        ? date('M j, Y', strtotime($data['quiz_result']['taken_at'])) 
+                                                                                        : 'N/A';
+                                                                                    ?>
+                                                                                </div>
                                                                             </div>
                                                                             <span class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 -top-8 left-1/2 transform -translate-x-1/2">
-                                                                                Quiz taken on <?= date('M j, Y', strtotime($data['quiz_result']['taken_at'])); ?>
+                                                                                <?php 
+                                                                                echo $data['quiz_result']['taken_at'] 
+                                                                                    ? 'Quiz taken on ' . date('M j, Y', strtotime($data['quiz_result']['taken_at'])) 
+                                                                                    : 'Quiz not yet evaluated';
+                                                                                ?>
                                                                             </span>
                                                                         </td>
                                                                     </tr>
@@ -451,11 +488,30 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                                     </div>
                                                                     <div class="col-span-2">
                                                                         <span class="font-medium">Quiz:</span>
-                                                                        Score: <?= $data['quiz_result']['score'] . '/' . $data['quiz_result']['totalItems']; ?>,
-                                                                        Status: <?= $data['quiz_result']['isPassed']
-                                                                            ? '<span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">Passed</span>'
-                                                                            : '<span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">Failed</span>'; ?>,
-                                                                        Taken: <?= date('M j, Y', strtotime($data['quiz_result']['taken_at'])); ?>
+                                                                        Score: 
+                                                                        <?php 
+                                                                        if ($data['quiz_result']['score'] !== null && $data['quiz_result']['totalItems'] > 0) {
+                                                                            echo htmlspecialchars($data['quiz_result']['score'] . '/' . $data['quiz_result']['totalItems']); 
+                                                                        } else {
+                                                                            echo 'N/A';
+                                                                        }
+                                                                        ?>,
+                                                                        Status: 
+                                                                        <?php 
+                                                                        if ($data['quiz_result']['isPassed'] !== null) {
+                                                                            echo $data['quiz_result']['isPassed']
+                                                                                ? '<span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">Passed</span>'
+                                                                                : '<span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">Failed</span>';
+                                                                        } else {
+                                                                            echo '<span class="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">Not Evaluated</span>';
+                                                                        }
+                                                                        ?>,
+                                                                        Taken: 
+                                                                        <?php 
+                                                                        echo $data['quiz_result']['taken_at'] 
+                                                                            ? date('M j, Y', strtotime($data['quiz_result']['taken_at'])) 
+                                                                            : 'N/A';
+                                                                        ?>
                                                                     </div>
                                                                 </div>
                                                             </div>
