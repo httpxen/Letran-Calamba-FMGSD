@@ -10,7 +10,7 @@ $moduleStmt = $pdo->prepare("SELECT * FROM modules WHERE id = :module_id");
 $moduleStmt->execute([':module_id' => $module_id]);
 $module = $moduleStmt->fetch(PDO::FETCH_ASSOC);
 
-$lessonStmt = $pdo->prepare("SELECT * FROM lessons WHERE module_id = :module_id ORDER BY created_at DESC");
+$lessonStmt = $pdo->prepare("SELECT * FROM lessons WHERE module_id = :module_id ORDER BY created_at ASC");
 $lessonStmt->execute([':module_id' => $module_id]);
 $lessons = $lessonStmt->fetchAll(PDO::FETCH_ASSOC);
 $rowCount = count($lessons);

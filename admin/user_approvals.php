@@ -2,6 +2,9 @@
 session_start();
 require_once '../db/db.php';
 
+// Set Philippine time zone
+date_default_timezone_set('Asia/Manila');
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "Admin") {
     header("Location: ../login.php");
     exit();
@@ -334,7 +337,7 @@ if (!$pending_result) {
                                                 <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['fullname']); ?></td>
                                                 <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['email']); ?></td>
                                                 <td class="px-6 py-4 text-sm text-gray-900">
-                                                    <?php echo htmlspecialchars(date('M d, Y H:i', strtotime($row['registered_at']))); ?>
+                                                    <?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($row['registered_at']))); ?>
                                                     <?php if ($is_late): ?>
                                                         <span class="text-red-600 font-semibold">(Late)</span>
                                                     <?php endif; ?>

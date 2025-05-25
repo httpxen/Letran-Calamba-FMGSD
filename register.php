@@ -2,6 +2,9 @@
 include 'db/db.php';
 session_start();
 
+// Set Philippine time zone
+date_default_timezone_set('Asia/Manila');
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 

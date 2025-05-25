@@ -204,9 +204,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     </a></li>
                 </ul>
             </nav>
+            <!-- Footer 
             <div class="p-4 border-t border-gray-100">
                 <p class="text-xs text-gray-500">Version 1.0.0</p>
-            </div>
+            </div> -->
         </aside>
 
         <!-- Main content -->

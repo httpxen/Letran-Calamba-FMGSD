@@ -66,30 +66,30 @@ $update_stmt->execute();
       <!-- Sidebar -->
       <aside
         id="sidebar"
-        class="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-lg transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 md:static md:shadow-none"
+        class="fixed inset-y-0 left-0 w-64 bg-white border-r shadow-soft transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 md:static md:shadow-none flex flex-col"
       >
-        <div class="flex items-center space-x-3 p-6 border-b">
+        <div class="flex items-center space-x-3 p-6 border-b border-gray-100">
           <img
             src="../assets/images/favicon.ico"
             alt="Logo"
-            class="w-10 h-10 rounded-md"
+            class="w-10 h-10 rounded-full"
           />
           <h2 class="text-xl font-bold text-dashboard">
             <span class="text-red-600">SuperAdmin</span> Dashboard
           </h2>
         </div>
 
-        <nav class="mt-6">
+        <nav class="mt-6 flex-1">
           <ul class="space-y-1 px-4">
             <!-- Dashboard -->
             <li>
               <a
                 href="dashboard.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-50 text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'dashboard.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-primary-600"
+                  class="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -109,11 +109,11 @@ $update_stmt->execute();
             <li>
               <a
                 href="user_approvals.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'user_approvals.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-primary-600"
+                  class="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -133,11 +133,11 @@ $update_stmt->execute();
             <li>
               <a
                 href="users.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'users.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-primary-600"
+                  class="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -157,11 +157,11 @@ $update_stmt->execute();
             <li>
               <a
                 href="user_records.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'user_records.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-primary-600"
+                  class="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -181,11 +181,11 @@ $update_stmt->execute();
             <li>
               <a
                 href="module_list.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'module_list.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-primary-600"
+                  class="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -205,7 +205,7 @@ $update_stmt->execute();
             <li>
               <a
                 href="account_management.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'account_management.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -213,7 +213,7 @@ $update_stmt->execute();
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
                   stroke="currentColor"
-                  class="w-5 h-5 text-primary-600"
+                  class="w-5 h-5"
                 >
                   <path
                     stroke-linecap="round"
@@ -229,11 +229,11 @@ $update_stmt->execute();
             <li>
               <a
                 href="../logout.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 font-medium transition-all duration-200 ease-in-out <?php echo $current_page === 'logout.php' ? 'bg-red-50 text-red-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="w-5 h-5 text-red-600"
+                  class="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke-width="1.5"
@@ -250,6 +250,11 @@ $update_stmt->execute();
             </li>
           </ul>
         </nav>
+
+        <!-- Version Footer -->
+        <div class="p-4 border-t border-gray-100">
+          <p class="text-xs text-gray-500">Version 1.0.0</p>
+        </div>
       </aside>
 
       <!-- Main content -->

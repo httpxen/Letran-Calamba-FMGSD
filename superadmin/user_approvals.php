@@ -2,6 +2,9 @@
 session_start();
 require_once '../db/db.php';
 
+// Set Philippine time zone
+date_default_timezone_set('Asia/Manila');
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "SuperAdmin") {
     header("Location: ../login.php");
     exit();
@@ -237,9 +240,6 @@ if (!$pending_result) {
                     </li>
                 </ul>
             </nav>
-            <div class="p-4 border-t border-gray-100">
-                <p class="text-xs text-gray-500">Version 1.0.0</p>
-            </div>
         </aside>
 
         <div class="flex-1 flex flex-col">
@@ -263,7 +263,7 @@ if (!$pending_result) {
                     <div class="relative flex items-center space-x-2 cursor-pointer" id="profile">
                         <span class="text-gray-600 font-medium hidden sm:block"><?php echo $fullname; ?></span>
                         <div class="relative">
-                            <img src="<?php echo $profile_picture; ?>" class="w-10 h-10 rounded-full border border-gray-200 склад shadow-sm" alt="Profile Picture" />
+                            <img src="<?php echo $profile_picture; ?>" class="w-10 h-10 rounded-full border border-gray-200 shadow-sm" alt="Profile Picture" />
                             <span id="status-dot" class="absolute bottom-0 right-0 w-3 h-3 rounded-full border border-white <?php echo $is_online ? 'bg-green-500' : 'bg-red-500'; ?>"></span>
                         </div>
                         <div id="profile-dropdown" class="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-50">
@@ -357,7 +357,7 @@ if (!$pending_result) {
                                                 <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['fullname']); ?></td>
                                                 <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['email']); ?></td>
                                                 <td class="px-6 py-4 text-sm text-gray-900">
-                                                    <?php echo htmlspecialchars(date('M d, Y H:i', strtotime($row['registered_at']))); ?>
+                                                    <?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($row['registered_at']))); ?>
                                                     <?php if ($is_late): ?>
                                                         <span class="text-red-600 font-semibold">(Late)</span>
                                                     <?php endif; ?>
