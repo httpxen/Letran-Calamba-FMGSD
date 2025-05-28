@@ -134,6 +134,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
       };
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        @media (max-width: 640px) {
+            .min-w-full {
+                width: 100%;
+                overflow-x: auto;
+            }
+            .min-w-full th, .min-w-full td {
+                min-width: 120px;
+            }
+            .w-12.h-12 {
+                width: 2.5rem;
+                height: 2.5rem;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans antialiased">
     <div class="flex h-screen overflow-hidden">
@@ -203,10 +218,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     </li>
                 </ul>
             </nav>
-                <!-- Footer 
-            <div class="p-4 border-t border-gray-100">
-                <p class="text-xs text-gray-500">Version 1.0.0</p>
-            </div> -->
         </aside>
 
         <!-- Main content -->
@@ -249,8 +260,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                         <div class="relative">
                             <img
                                 src="<?php echo $profile_picture; ?>"
-                                class="w-10 h-10 rounded-full border border-gray-200 shadow-sm"
+                                class="w-10 h-10 rounded-full border border-gray-200 shadow-sm object-cover"
                                 alt="Profile Picture"
+                                onerror="this.src='../assets/images/profile-placeholder.png';"
                             />
                             <span
                                 id="status-dot"
@@ -264,8 +276,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                             <div class="flex items-center p-4 border-b">
                                 <img
                                     src="<?php echo $profile_picture; ?>"
-                                    class="w-10 h-10 rounded-full"
+                                    class="w-10 h-10 rounded-full object-cover"
                                     alt="Profile Picture"
+                                    onerror="this.src='../assets/images/profile-placeholder.png';"
                                 />
                                 <div class="ml-3">
                                     <p class="text-sm font-semibold text-gray-800"><?php echo $fullname; ?></p>
@@ -288,7 +301,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                         <path
                                             stroke-linecap="round"
                                             stroke-linejoin="round"
-                                            d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-7.5 0h7.5m-12-6h3.75m-3.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-9.75 0h9.75"
+                                            d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 1 1-3 0m30a1.5 1.5 0 1 0-3 0m-7.5 0h7.5m-12-6h3.75m-3.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-9.75 0h9.75"
                                         />
                                     </svg>
                                     Account Settings
@@ -343,9 +356,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 <tbody id="user-table" class="divide-y divide-gray-200">
                                     <?php while ($row = $users_result->fetch_assoc()): ?>
                                         <tr class="hover:bg-gray-50 transition-all duration-200">
-                                            <td class="px-6 py-4">
+                                            <td class="px-6 py-4 flex items-center">
                                                 <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                                                    <img src="<?php echo htmlspecialchars($row['profile_picture'] ?: '../assets/images/profile-placeholder.png'); ?>" alt="Profile" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<span class=\"text-gray-500 text-xs\">No Image</span>';" />
+                                                    <img
+                                                        src="<?php echo htmlspecialchars($row['profile_picture'] ?: '../assets/images/profile-placeholder.png'); ?>"
+                                                        alt="Profile"
+                                                        class="w-full h-full object-cover"
+                                                        onerror="this.src='../assets/images/profile-placeholder.png';"
+                                                    />
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($row['fullname']); ?></td>
