@@ -87,7 +87,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['user_id'], $_POST['act
                             <h2>Hello, {$target_user['fullname']}!</h2>
                             <p>Your EHS account has been " . ($action === 'approve' ? 'approved' : 'declined') . ".</p>
                             " . ($action === 'approve' ? 
-                                "<p>You can now log in to your account at <a href='https://yourwebsite.com/login.php'>our login page</a> using your registered email and password.</p>" : 
+                                "<p>You can now log in to your account at <a href='http://localhost:8000/login.php'>our login page</a> using your registered email and password.</p>" : 
                                 "<p>" . ($is_late ? "Your registration was declined because it was submitted after the $registration_window-day window." : "Your account was declined by an administrator.") . " Please contact support at <a href='mailto:opulenciaandrei23@gmail.com'>opulenciaandrei23@gmail.com</a> for more information.</p>") . "
                             <p><strong>Your Email:</strong> {$target_user['email']}</p>
                             <br><p>- EHS Team</p>

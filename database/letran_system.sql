@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 20, 2025 at 04:10 PM
+-- Generation Time: May 27, 2025 at 01:41 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -121,7 +121,8 @@ CREATE TABLE `users` (
   `approval_status` enum('Pending','Approved','Declined') NOT NULL DEFAULT 'Pending',
   `registered_at` datetime NOT NULL DEFAULT current_timestamp(),
   `last_updated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `account_status` enum('Active','Inactive') NOT NULL DEFAULT 'Inactive'
+  `account_status` enum('Active','Inactive') NOT NULL DEFAULT 'Inactive',
+  `username` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -196,7 +197,8 @@ ALTER TABLE `quiz_results`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
+  ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `username` (`username`);
 
 --
 -- Indexes for table `user_notes`
@@ -252,7 +254,7 @@ ALTER TABLE `quiz_results`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `user_notes`
