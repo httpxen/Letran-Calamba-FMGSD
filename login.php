@@ -26,7 +26,6 @@ if (isset($_SESSION['user_id'])) {
     } elseif ($_SESSION['role'] == "Admin") {
         header("Location: admin/dashboard.php");
     } else {
-        // Verify approval status for User role only
         $sql = "SELECT approval_status FROM users WHERE id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $_SESSION['user_id']);
@@ -48,35 +47,39 @@ if (isset($_SESSION['user_id'])) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+    $login_input = filter_var($_POST['login_input'], FILTER_SANITIZE_STRING);
     $password = $_POST['password'];
 
-    if (empty($email) || empty($password)) {
-        $error = "Email and password are required.";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = "Invalid email format.";
+    if (empty($login_input) || empty($password)) {
+        $error = "Username or Email and password are required.";
     } else {
-        $sql = "SELECT id, fullname, password, role, approval_status, account_status FROM users WHERE email = ?";
+        // Check if input is a valid email format
+        $is_email = filter_var($login_input, FILTER_VALIDATE_EMAIL);
+
+        // Prepare query to check either username (for SuperAdmin) or email (for Admin/User)
+        $sql = "SELECT id, fullname, password, role, approval_status, account_status, username 
+                FROM users 
+                WHERE " . ($is_email ? "email = ?" : "username = ?");
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("s", $email);
+        $stmt->bind_param("s", $login_input);
         $stmt->execute();
         $result = $stmt->get_result();
         $user = $result->fetch_assoc();
 
         if ($user && password_verify($password, $user['password'])) {
-            // Check account status first
+            // Check account status
             if ($user['account_status'] === 'Inactive') {
                 $error = "Your account is inactive. Please contact support.";
             } elseif ($user['role'] === 'User' && $user['approval_status'] !== 'Approved') {
-                // Skip approval check for SuperAdmin and Admin roles
+                // Skip approval check for SuperAdmin and Admin
                 $error = $user['approval_status'] === 'Pending' 
                     ? "Your account is pending approval. Please wait for admin approval."
                     : "Your account has been declined. Please contact support.";
             } else {
                 // Capture user agent
                 $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-                $user_agent = substr($user_agent, 0, 255); // Truncate to fit VARCHAR(255)
-                
+                $user_agent = substr($user_agent, 0, 255);
+
                 // Update user data
                 $update_sql = "UPDATE users SET last_login = NOW(), is_online = 1, status = 'online', current_device = ? WHERE id = ?";
                 $update_stmt = $conn->prepare($update_sql);
@@ -101,7 +104,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 exit();
             }
         } else {
-            $error = "Invalid email or password.";
+            $error = "Invalid login credentials.";
         }
         $stmt->close();
     }
@@ -413,13 +416,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             <form class="space-y-6" method="POST" id="loginForm">
                 <div class="form-group" style="--i: 1">
-                    <input type="email" name="email" id="email" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none form-input" placeholder=" " required>
-                    <label for="email" class="form-label">Email</label>
+                    <input type="text" name="login_input" id="login_input" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none form-input" placeholder=" " required>
+                    <label for="login_input" class="form-label">Username or Email</label>
                 </div>
                 <div class="form-group relative" style="--i: 2">
                     <input type="password" name="password" id="password" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none form-input" placeholder=" " required>
                     <label for="password" class="form-label">Password</label>
-                    <img src="assets/icons/eye-off.png" alt="Show/Hide Password" class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 cursor-pointer toggle-password" id="togglePassword">
+                    <img src="assets/icons/eye-off.png" alt="Show/Hide Password" class="toggle-password" id="togglePassword">
                 </div>
                 <div class="text-right">
                     <a href="forgot_password.php" class="text-sm text-blue-600 link-animate">Forgot Password?</a>
@@ -437,7 +440,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <script>
-        // Password Toggle
         const togglePassword = document.getElementById('togglePassword');
         const passwordInput = document.getElementById('password');
 
@@ -448,7 +450,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             togglePassword.classList.toggle('show', isPassword);
         });
 
-        // Form Submission Animation
         const form = document.getElementById('loginForm');
         const submitButton = document.getElementById('submitButton');
         const buttonText = document.getElementById('buttonText');
@@ -462,7 +463,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 submitButton.disabled = false;
                 buttonText.style.opacity = '1';
                 spinner.style.display = 'none';
-            }, 2000); // Simulate loading for 2 seconds
+            }, 2000);
         });
     </script>
 </body>

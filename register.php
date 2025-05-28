@@ -12,32 +12,39 @@ require 'vendor/autoload.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $fullname = filter_var($_POST['fullname'], FILTER_SANITIZE_STRING);
+    $username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
     $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
     $password = $_POST['password'];
     $role = 'User';
     $approval_status = 'Pending';
 
-    if (empty($fullname) || empty($email) || empty($password)) {
+    if (empty($fullname) || empty($username) || empty($email) || empty($password)) {
         $error = "All fields are required.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format.";
     } else {
-        $sql_check = "SELECT email FROM users WHERE email = ?";
+        // Check if username or email already exists
+        $sql_check = "SELECT username, email FROM users WHERE username = ? OR email = ?";
         $stmt_check = $conn->prepare($sql_check);
-        $stmt_check->bind_param("s", $email);
+        $stmt_check->bind_param("ss", $username, $email);
         $stmt_check->execute();
         $result = $stmt_check->get_result();
 
         if ($result->num_rows > 0) {
-            $error = "Email already exists. Please use a different email.";
+            $row = $result->fetch_assoc();
+            if ($row['username'] === $username) {
+                $error = "Username already exists. Please choose a different username.";
+            } elseif ($row['email'] === $email) {
+                $error = "Email already exists. Please use a different email.";
+            }
         } else {
             $password_hashed = password_hash($password, PASSWORD_DEFAULT);
             $profile_picture = "../assets/images/profile-placeholder.png";
             $registered_at = date('Y-m-d H:i:s');
 
-            $sql = "INSERT INTO users (fullname, email, password, role, profile_picture, approval_status, registered_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO users (fullname, username, email, password, role, profile_picture, approval_status, registered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("sssssss", $fullname, $email, $password_hashed, $role, $profile_picture, $approval_status, $registered_at);
+            $stmt->bind_param("ssssssss", $fullname, $username, $email, $password_hashed, $role, $profile_picture, $approval_status, $registered_at);
 
             if ($stmt->execute()) {
                 $_SESSION['fullname'] = $fullname;
@@ -61,6 +68,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <p>Thank you for registering at EHS.</p>
                         <p>Your account is currently pending approval by an administrator.</p>
                         <p>You will be notified once your account is approved or declined.</p>
+                        <p><strong>Your Username:</strong> $username</p>
                         <p><strong>Your Email:</strong> $email</p>
                         <p>For your security, never share your password with anyone.</p>
                         <p>If you have any questions, contact us at 
@@ -387,10 +395,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <label for="fullname" class="form-label">Full Name</label>
                 </div>
                 <div class="form-group" style="--i: 2">
+                    <input type="text" name="username" id="username" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none form-input" placeholder=" " required>
+                    <label for="username" class="form-label">Username</label>
+                </div>
+                <div class="form-group" style="--i: 3">
                     <input type="email" name="email" id="email" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none form-input" placeholder=" " required>
                     <label for="email" class="form-label">Email</label>
                 </div>
-                <div class="form-group relative" style="--i: 3">
+                <div class="form-group relative" style="--i: 4">
                     <input type="password" name="password" id="password" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none form-input" placeholder=" " required>
                     <label for="password" class="form-label">Password</label>
                     <img src="assets/icons/eye-off.png" alt="Show/Hide Password" class="toggle-password" id="togglePassword">

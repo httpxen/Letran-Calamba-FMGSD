@@ -342,7 +342,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 <div>
                                     <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
                                     <select name="role" id="role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-600 focus:ring-primary-600 sm:text-sm">
-                                        <option value="SuperAdmin" <?php echo $edit_user['role'] === 'SuperAdmin' ? 'selected' : ''; ?>>SuperAdmin</option>
+                                        <!-- <option value="SuperAdmin" <?php echo $edit_user['role'] === 'SuperAdmin' ? 'selected' : ''; ?>>SuperAdmin</option> -->
                                         <option value="Admin" <?php echo $edit_user['role'] === 'Admin' ? 'selected' : ''; ?>>Admin</option>
                                         <option value="User" <?php echo $edit_user['role'] === 'User' ? 'selected' : ''; ?>>User</option>
                                     </select>
