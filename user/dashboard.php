@@ -28,6 +28,25 @@ $update_query = "UPDATE users SET last_active = NOW() WHERE id = ?";
 $update_stmt = $conn->prepare($update_query);
 $update_stmt->bind_param("i", $user_id);
 $update_stmt->execute();
+
+// Fetch quiz statistics
+$quiz_query = "SELECT 
+    (SELECT COUNT(*) FROM quizzes WHERE status = 'active') as available_quizzes,
+    (SELECT COUNT(DISTINCT lesson_id) FROM quiz_results WHERE user_id = ?) as taken_quizzes,
+    (SELECT AVG(score / totalItems * 100) FROM quiz_results WHERE user_id = ?) as average_score,
+    (SELECT COUNT(*) FROM quiz_results WHERE user_id = ? AND isPassed = 1) as passed_quizzes,
+    (SELECT COUNT(*) FROM quiz_results WHERE user_id = ? AND isPassed = 0) as failed_quizzes";
+$quiz_stmt = $conn->prepare($quiz_query);
+$quiz_stmt->bind_param("iiii", $user_id, $user_id, $user_id, $user_id);
+$quiz_stmt->execute();
+$quiz_result = $quiz_stmt->get_result();
+$quiz_data = $quiz_result->fetch_assoc();
+
+$available_quizzes = $quiz_data['available_quizzes'] ?? 0;
+$taken_quizzes = $quiz_data['taken_quizzes'] ?? 0;
+$average_score = $quiz_data['average_score'] ? round($quiz_data['average_score'], 1) : 0;
+$passed_quizzes = $quiz_data['passed_quizzes'] ?? 0;
+$failed_quizzes = $quiz_data['failed_quizzes'] ?? 0;
 ?>
 
 <!DOCTYPE html>
@@ -38,6 +57,7 @@ $update_stmt->execute();
     <title>User Dashboard</title>
     <link rel="icon" type="image/png" href="../assets/images/favicon.ico" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -52,6 +72,8 @@ $update_stmt->execute();
                 700: "#4338ca",
               },
               dashboard: "#12234e",
+              success: "#10b981",
+              danger: "#ef4444",
             },
           },
         },
@@ -228,7 +250,7 @@ $update_stmt->execute();
               />
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2"
+                class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform pion-1/2"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke-width="1.5"
@@ -286,7 +308,7 @@ $update_stmt->execute();
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-7.5 0h7.5m-12-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"
+                        d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 0 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-7.5 0h7.5m-12-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"
                       />
                     </svg>
                     Account Settings
@@ -296,6 +318,104 @@ $update_stmt->execute();
             </div>
           </div>
         </header>
+
+        <!-- Dashboard Content -->
+        <main class="flex-1 p-6 overflow-y-auto">
+          <div class="max-w-7xl mx-auto">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 mb-8">
+              <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200">
+                <div class="flex items-center gap-4">
+                  <div class="p-3 bg-primary-50 rounded-full">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="w-6 h-6 text-primary-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M4.5 12.75l6 6 9-13.5"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Quizzes Taken</h3>
+                    <p class="text-2xl font-bold text-dashboard"><?php echo $taken_quizzes; ?></p>
+                    <p class="text-sm text-gray-500">Total completed quizzes</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200">
+                <div class="flex items-center gap-4">
+                  <div class="p-3 bg-primary-50 rounded-full">
+                    <svg
+                      xmlns=" vra/w3.org/2000/svg"
+                      class="w-6 h-6 text-primary-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Available Quizzes</h3>
+                    <p class="text-2xl font-bold text-dashboard"><?php echo $available_quizzes; ?></p>
+                    <p class="text-sm text-gray-500">Quizzes ready to take</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200">
+                <div class="flex items-center gap-4">
+                  <div class="p-3 bg-primary-50 rounded-full">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="w-6 h-6 text-primary-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-semibold text-gray-800">Average Score</h3>
+                    <p class="text-2xl font-bold text-dashboard"><?php echo $average_score; ?>%</p>
+                    <p class="text-sm text-gray-500">Average quiz performance</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Performance Chart -->
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-800 mb-4">Quiz Performance Overview</h3>
+              <div class="flex justify-center">
+                <div class="w-64 h-64">
+                  <canvas id="performanceChart"></canvas>
+                </div>
+              </div>
+              <div class="flex justify-center mt-4 space-x-6 text-sm">
+                <span class="flex items-center"><span class="w-4 h-4 bg-success mr-2 rounded-full"></span>Passed</span>
+                <span class="flex items-center"><span class="w-4 h-4 bg-danger mr-2 rounded-full"></span>Failed</span>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
 
@@ -332,6 +452,29 @@ $update_stmt->execute();
       document.addEventListener("click", (e) => {
         if (!profile.contains(e.target)) {
           profileDropdown.classList.add("hidden");
+        }
+      });
+
+      // Chart initialization
+      const ctx = document.getElementById('performanceChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Passed', 'Failed'],
+          datasets: [{
+            data: [<?php echo $passed_quizzes; ?>, <?php echo $failed_quizzes; ?>],
+            backgroundColor: ['#10b981', '#ef4444'],
+            borderColor: ['#ffffff', '#ffffff'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+          }
         }
       });
     </script>

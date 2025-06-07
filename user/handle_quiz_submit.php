@@ -149,21 +149,34 @@ if ($success) {
         'total' => $total,
         'isPassed' => $isPassed,
         'lesson_title' => $lesson['lesson_title'],
-        'module_title' => $lesson['module_title']
+        'module_title' => $lesson['module_title'],
+        'lesson_id' => $lesson_id
     ];
 
-    // Debugging: Log the saved result
-    $stmt = $pdo->prepare("SELECT * FROM quiz_results WHERE id = :result_id");
-    $stmt->execute([':result_id' => $result_id]);
-    $debug_result = $stmt->fetch(PDO::FETCH_ASSOC);
-    error_log("Quiz Result Saved: " . print_r($debug_result, true));
+    // Check for active surveys
+        $stmt = $pdo->prepare("SELECT id, title, description FROM surveys WHERE status = 'active'");
+        $stmt->execute();
+        $active_surveys = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    header("Location: quiz_result.php?result_id=" . urlencode($result_id));
-    exit();
-} else {
-    $_SESSION['error'] = "Error saving quiz results. Please try again.";
-    error_log("Failed to save quiz result for user_id: $user_id, lesson_id: $lesson_id");
-    header("Location: lesson.php?lesson_id=" . urlencode($lesson_id));
-    exit();
+        // Check if user has already responded to surveys for this lesson
+        $stmt = $pdo->prepare("SELECT survey_id FROM survey_responses WHERE user_id = :user_id AND survey_id IN (SELECT id FROM surveys WHERE status = 'active')");
+        $stmt->execute([':user_id' => $user_id]);
+        $responded_surveys = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Filter out surveys the user has already responded to
+        $available_surveys = array_filter($active_surveys, function($survey) use ($responded_surveys) {
+            return !in_array($survey['id'], $responded_surveys);
+        });
+
+        // Debugging: Log the saved result
+        $stmt = $pdo->prepare("SELECT * FROM quiz_results WHERE id = :result_id");
+        $stmt->execute([':result_id' => $result_id]);
+        $debug_result = $stmt->fetch(PDO::FETCH_ASSOC);
+        error_log("Quiz Result Saved: " . print_r($debug_result, true));
+
+        // Store surveys in session and redirect to quiz results
+        $_SESSION['available_surveys'] = $available_surveys;
+        header("Location: quiz_result.php?result_id=" . urlencode($result_id));
+        exit();
 }
 ?>
