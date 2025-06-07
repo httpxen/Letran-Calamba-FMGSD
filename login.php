@@ -395,7 +395,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <img src="assets/images/icon.png" alt="School Logo" class="h-16 w-16 object-contain logo">
             </div>
             <h1 class="text-4xl font-extrabold text-center text-gray-800 mb-2 title-text">Letran Calamba</h1>
-            <p class="text-lg text-center text-gray-600 mb-6 subtitle-text">Log in to your student portal</p>
+            <p class="text-lg text-center text-gray-600 mb-6 subtitle-text">Portal Login</p>
 
             <?php if (isset($error)): ?>
                 <div class="bg-red-100 text-red-700 p-4 rounded-lg mb-6 text-center error-message"><?php echo htmlspecialchars($error); ?></div>

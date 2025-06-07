@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 27, 2025 at 01:41 PM
+-- Generation Time: Jun 03, 2025 at 01:06 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -32,6 +32,20 @@ CREATE TABLE `lessons` (
   `title` varchar(255) NOT NULL,
   `video_url` text NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `lesson_progress`
+--
+
+CREATE TABLE `lesson_progress` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `lesson_id` int(11) NOT NULL,
+  `video_watched` tinyint(1) DEFAULT 0,
+  `watched_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -103,6 +117,35 @@ CREATE TABLE `quiz_results` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `surveys`
+--
+
+CREATE TABLE `surveys` (
+  `id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('active','inactive') DEFAULT 'active'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `survey_responses`
+--
+
+CREATE TABLE `survey_responses` (
+  `id` int(11) NOT NULL,
+  `survey_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `rating` int(11) NOT NULL CHECK (`rating` >= 1 and `rating` <= 5),
+  `feedback` text DEFAULT NULL,
+  `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `users`
 --
 
@@ -165,6 +208,14 @@ ALTER TABLE `lessons`
   ADD KEY `module_id` (`module_id`);
 
 --
+-- Indexes for table `lesson_progress`
+--
+ALTER TABLE `lesson_progress`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `user_lesson` (`user_id`,`lesson_id`),
+  ADD KEY `lesson_id` (`lesson_id`);
+
+--
 -- Indexes for table `modules`
 --
 ALTER TABLE `modules`
@@ -191,6 +242,20 @@ ALTER TABLE `quiz_results`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
   ADD KEY `lesson_id` (`lesson_id`);
+
+--
+-- Indexes for table `surveys`
+--
+ALTER TABLE `surveys`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `survey_id` (`survey_id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `users`
@@ -227,6 +292,12 @@ ALTER TABLE `lessons`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `lesson_progress`
+--
+ALTER TABLE `lesson_progress`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `modules`
 --
 ALTER TABLE `modules`
@@ -251,10 +322,22 @@ ALTER TABLE `quiz_results`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `surveys`
+--
+ALTER TABLE `surveys`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `user_notes`
@@ -279,6 +362,13 @@ ALTER TABLE `lessons`
   ADD CONSTRAINT `lessons_ibfk_1` FOREIGN KEY (`module_id`) REFERENCES `modules` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
+-- Constraints for table `lesson_progress`
+--
+ALTER TABLE `lesson_progress`
+  ADD CONSTRAINT `lesson_progress_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `lesson_progress_ibfk_2` FOREIGN KEY (`lesson_id`) REFERENCES `lessons` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
 -- Constraints for table `quizzes`
 --
 ALTER TABLE `quizzes`
@@ -290,6 +380,13 @@ ALTER TABLE `quizzes`
 ALTER TABLE `quiz_results`
   ADD CONSTRAINT `quiz_results_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `quiz_results_ibfk_2` FOREIGN KEY (`lesson_id`) REFERENCES `lessons` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  ADD CONSTRAINT `survey_responses_ibfk_1` FOREIGN KEY (`survey_id`) REFERENCES `surveys` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `survey_responses_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `user_notes`

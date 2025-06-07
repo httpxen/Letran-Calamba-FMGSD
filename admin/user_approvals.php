@@ -234,18 +234,7 @@ if (!$pending_result) {
                     <p class="text-gray-600">Review and approve or decline user registrations</p>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <div class="relative">
-                        <input type="text" id="search" placeholder="Search users..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-600" />
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1116.65 16.65z" />
-                        </svg>
-                    </div>
                     <div class="relative flex items-center space-x-2 cursor-pointer" id="profile">
-                        <span class="text-gray-600 font-medium"><?php echo $fullname; ?></span>
-                        <div class="relative">
-                            <img src="<?php echo $profile_picture; ?>" class="w-10 h-10 rounded-full border border-gray-200 shadow-sm" alt="Profile Picture" />
-                            <span id="status-dot" class="absolute bottom-0 right-0 w-3 h-3 rounded-full border border-white <?php echo $is_online ? 'bg-green-500' : 'bg-red-500'; ?>"></span>
-                        </div>
                         <div id="profile-dropdown" class="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg hidden z-50">
                             <div class="flex items-center p-4 border-b">
                                 <img src="<?php echo $profile_picture; ?>" class="w-10 h-10 rounded-full" alt="Profile Picture" />
@@ -408,22 +397,6 @@ if (!$pending_result) {
             if (!profile.contains(e.target)) {
                 profileDropdown.classList.add("hidden");
             }
-        });
-
-        // Client-side search
-        const searchInput = document.getElementById("search");
-        searchInput.addEventListener("input", () => {
-            const filter = searchInput.value.toLowerCase();
-            const rows = document.querySelectorAll("#user-table tr");
-            rows.forEach(row => {
-                const name = row.cells[0].textContent.toLowerCase();
-                const email = row.cells[1].textContent.toLowerCase();
-                if (name.includes(filter) || email.includes(filter)) {
-                    row.style.display = "";
-                } else {
-                    row.style.display = "none";
-                }
-            });
         });
 
         // Table sorting

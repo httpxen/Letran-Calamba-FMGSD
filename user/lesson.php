@@ -17,6 +17,54 @@ if (!$lesson_id) {
 }
 $user_id = $_SESSION['user_id'];
 
+// Handle survey submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_survey'])) {
+    $survey_id = $_POST['survey_id'] ?? null;
+    $rating = $_POST['rating'] ?? null;
+    $feedback = trim($_POST['feedback'] ?? '');
+    $result_id = $_POST['result_id'] ?? null;
+
+    if ($survey_id && $rating && in_array($rating, [1, 2, 3, 4, 5])) {
+        $stmt = $pdo->prepare("
+            INSERT INTO survey_responses (survey_id, user_id, rating, feedback)
+            VALUES (:survey_id, :user_id, :rating, :feedback)
+        ");
+        $success = $stmt->execute([
+            ':survey_id' => $survey_id,
+            ':user_id' => $user_id,
+            ':rating' => $rating,
+            ':feedback' => $feedback
+        ]);
+
+        if ($success) {
+            // Remove the submitted survey from the session
+            $_SESSION['available_surveys'] = array_filter($_SESSION['available_surveys'] ?? [], function($s) use ($survey_id) {
+                return $s['id'] != $survey_id;
+            });
+
+            // If no more surveys, redirect to quiz_result.php
+            if (empty($_SESSION['available_surveys'])) {
+                unset($_SESSION['available_surveys']);
+                header("Location: quiz_result.php?result_id=" . urlencode($result_id));
+                exit();
+            }
+            // Reload lesson.php to show the next survey
+            header("Location: lesson.php?lesson_id=" . urlencode($lesson_id) . "&result_id=" . urlencode($result_id) . "&show_survey=true");
+            exit();
+        } else {
+            $_SESSION['error'] = "Failed to submit survey. Please try again.";
+        }
+    } else {
+        $_SESSION['error'] = "Please provide a valid rating.";
+    }
+}
+
+// Check if the video has been watched
+$progressStmt = $pdo->prepare("SELECT video_watched FROM lesson_progress WHERE user_id = :user_id AND lesson_id = :lesson_id");
+$progressStmt->execute([':user_id' => $user_id, ':lesson_id' => $lesson_id]);
+$progress = $progressStmt->fetch(PDO::FETCH_ASSOC);
+$videoWatched = $progress && $progress['video_watched'] == 1;
+
 // Fetch lesson details
 $stmt = $pdo->prepare("SELECT * FROM lessons WHERE id = :lesson_id");
 $stmt->execute([':lesson_id' => $lesson_id]);
@@ -28,6 +76,7 @@ if ($lesson) {
   $module_id = $lesson['module_id'];
   $lessonsStmt = $pdo->prepare("
     SELECT lessons.id, lessons.title, 
+           (SELECT video_watched FROM lesson_progress WHERE user_id = :user_id AND lesson_id = lessons.id) as video_watched,
            (SELECT isWatched FROM quiz_results WHERE user_id = :user_id AND lesson_id = lessons.id ORDER BY taken_at DESC LIMIT 1) as is_completed
     FROM lessons 
     WHERE module_id = :module_id
@@ -49,6 +98,12 @@ $totalQuestions = count($questions);
 // Shuffle questions
 $shuffleQuestions = $questions;
 shuffle($shuffleQuestions);
+
+// Get survey data if available
+$result_id = $_GET['result_id'] ?? null;
+$show_survey = isset($_GET['show_survey']) && $_GET['show_survey'] === 'true';
+$available_surveys = $_SESSION['available_surveys'] ?? [];
+$survey = !empty($available_surveys) ? reset($available_surveys) : null;
 ?>
 
 <!DOCTYPE html>
@@ -96,6 +151,19 @@ shuffle($shuffleQuestions);
     .visible {
       opacity: 1;
       pointer-events: auto;
+    }
+    .video-container {
+      position: relative;
+    }
+    .video-player-wrapper {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+    .button-container {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+      margin-top: 1rem;
     }
   </style>
 </head>
@@ -185,10 +253,14 @@ shuffle($shuffleQuestions);
                       <div class="absolute left-3 top-[2.25rem] h-[3.25rem] w-1 bg-gray-200"></div>
                     <?php endif; ?>
                     <!-- Progress Circle -->
-                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-medium <?php echo $tracked_lesson['id'] == $lesson_id ? 'bg-progress-500 text-white' : ($tracked_lesson['is_completed'] ? 'bg-progress-500 text-white' : ''); ?>">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-600 font-medium <?php echo $tracked_lesson['id'] == $lesson_id ? 'bg-progress-500 text-white' : ($tracked_lesson['is_completed'] ? 'bg-progress-500 text-white' : ($tracked_lesson['video_watched'] ? 'bg-yellow-500 text-white' : '')); ?>">
                       <?php if ($tracked_lesson['is_completed'] || $tracked_lesson['id'] == $lesson_id): ?>
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      <?php elseif ($tracked_lesson['video_watched']): ?>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                         </svg>
                       <?php else: ?>
                         <span><?php echo $index + 1; ?></span>
@@ -207,6 +279,12 @@ shuffle($shuffleQuestions);
                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clip-rule="evenodd" />
                           </svg> Completed
                         </span>
+                      <?php elseif ($tracked_lesson['video_watched']): ?>
+                        <span class="inline-flex items-center mt-1 px-2 py-1 text-yellow-600 bg-yellow-50 text-xs font-medium rounded-full">
+                          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          </svg> Video Watched
+                        </span>
                       <?php else: ?>
                         <span class="inline-flex items-center mt-1 px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full">
                           <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,29 +301,49 @@ shuffle($shuffleQuestions);
             <!-- Video and Quiz Container -->
             <div class="w-full lg:w-3/4">
               <?php if ($quizItem > 0): ?>
-                <div class="video-container bg-white rounded-lg shadow-md p-6 border border-gray-200 fade visible relative">
+                <div class="video-container bg-white rounded-lg shadow-md p-6 border border-gray-200 fade <?php echo $videoWatched ? 'hidden' : 'visible'; ?>" id="video-container">
                   <?php if ($rowCount > 0): ?>
-                    <div class="relative rounded-md overflow-hidden border border-gray-300">
+                    <div class="video-player-wrapper">
                       <video id="lesson_video" controls controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false;" class="w-full h-auto aspect-video">
                         <source src="<?= htmlspecialchars($lesson['video_url']) ?>" type="video/mp4">
                         Your browser does not support the video tag.
                       </video>
                     </div>
-                    <!-- Proceed to Quiz Button (Initially Hidden) -->
-                    <div id="proceed-to-quiz" class="absolute bottom-4 right-4 hidden fade">
+                    <!-- Buttons (Initially Hidden Until Video Ends) -->
+                    <div id="proceed-to-quiz" class="button-container hidden fade">
                       <button id="proceed-button" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 transition-colors duration-200" aria-label="Take quiz after watching the lesson video">
                         Take Quiz
                       </button>
-                      <a href="modules_list.php" class="ml-4 px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors duration-200">
+                      <a href="modules_list.php" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors duration-200" title="Return to modules without taking the quiz. Your video progress is saved.">
                         Back to Modules
                       </a>
                     </div>
+                    <p class="mt-2 text-sm text-gray-500">You can return to modules without taking the quiz. Your video progress is saved.</p>
                   <?php else: ?>
                     <div class="text-center py-12">
                       <p class="text-gray-600 text-lg font-medium">No lesson uploaded yet for this module.</p>
                       <a href="modules_list.php" class="mt-4 inline-block px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200">Back to Modules</a>
                     </div>
                   <?php endif; ?>
+                </div>
+
+                <!-- Options for Rewatch or Proceed (Shown if Video Watched) -->
+                <div id="options-container" class="bg-white rounded-lg shadow-md border border-gray-200 fade <?php echo $videoWatched ? 'visible' : 'hidden'; ?>">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4">
+                    <h3 class="text-lg font-semibold text-gray-800">You’ve watched this lesson video</h3>
+                    <div class="flex flex-wrap gap-3">
+                      <button id="rewatch-button" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200">
+                        Rewatch Video
+                      </button>
+                      <button id="proceed-to-quiz-direct" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-600 transition-colors duration-200">
+                        Proceed to Quiz
+                      </button>
+                      <a href="modules_list.php" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors duration-200" title="Return to modules without taking the quiz. Your video progress is saved.">
+                        Back to Modules
+                      </a>
+                    </div>
+                  </div>
+                  <p class="text-sm text-gray-500 px-4 pb-3">You can return to modules without taking the quiz. Your video progress is saved.</p>
                 </div>
 
                 <div id="quiz-container" class="quiz-container bg-white rounded-lg shadow-md p-6 hidden fade">
@@ -284,7 +382,7 @@ shuffle($shuffleQuestions);
                   </div>
                 </div>
 
-                <div id="waiting" class="text-center text-sm text-gray-500 mt-4">
+                <div id="waiting" class="text-center text-sm text-gray-500 mt-4 <?php echo $videoWatched ? 'hidden' : ''; ?>">
                   Please watch the video to proceed to the quiz.
                 </div>
               <?php else: ?>
@@ -295,6 +393,47 @@ shuffle($shuffleQuestions);
             </div>
           </div>
         </div>
+
+        <!-- Survey Modal -->
+        <?php if ($survey && $show_survey && $result_id): ?>
+          <div id="survey-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+              <h2 class="text-lg font-semibold text-dashboard mb-4"><?php echo htmlspecialchars($survey['title']); ?></h2>
+              <?php if (isset($_SESSION['error'])): ?>
+                <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+                  <?php echo htmlspecialchars($_SESSION['error']); ?>
+                  <?php unset($_SESSION['error']); ?>
+                </div>
+              <?php endif; ?>
+              <form method="POST">
+                <input type="hidden" name="survey_id" value="<?php echo $survey['id']; ?>">
+                <input type="hidden" name="result_id" value="<?php echo htmlspecialchars($result_id); ?>">
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700"><?php echo htmlspecialchars($survey['description'] ?? 'Please provide your feedback for this lesson.'); ?></label>
+                </div>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700">Rating (1-5)</label>
+                  <div class="flex gap-2 mt-2">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label class="flex items-center gap-1">
+                        <input type="radio" name="rating" value="<?php echo $i; ?>" class="text-primary-600 focus:ring-primary-600" required>
+                        <span><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
+                </div>
+                <div class="mb-4">
+                  <label for="feedback" class="block text-sm font-medium text-gray-700">Feedback (Optional)</label>
+                  <textarea name="feedback" id="feedback" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-600 focus:ring focus:ring-primary-600 focus:ring-opacity-50" rows="4"></textarea>
+                </div>
+                <div class="flex justify-end space-x-2">
+                  <a href="quiz_result.php?result_id=<?php echo urlencode($result_id); ?>" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Skip</a>
+                  <button type="submit" name="submit_survey" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">Submit</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        <?php endif; ?>
       </main>
     </div>
   </div>
@@ -322,11 +461,14 @@ shuffle($shuffleQuestions);
     // Video and quiz logic
     document.addEventListener('DOMContentLoaded', function() {
       const video = document.getElementById('lesson_video');
-      const videoContainer = document.querySelector('.video-container');
+      const videoContainer = document.getElementById('video-container');
+      const optionsContainer = document.getElementById('options-container');
       const quizForm = document.getElementById('quiz-container');
       const waitingMsg = document.getElementById('waiting');
       const proceedContainer = document.getElementById('proceed-to-quiz');
       const proceedButton = document.getElementById('proceed-button');
+      const rewatchButton = document.getElementById('rewatch-button');
+      const proceedToQuizDirect = document.getElementById('proceed-to-quiz-direct');
 
       if (video) {
         video.addEventListener('ended', () => {
@@ -334,6 +476,13 @@ shuffle($shuffleQuestions);
             waitingMsg.classList.add("hidden");
             proceedContainer.classList.remove("hidden");
             proceedContainer.classList.add("visible");
+
+            // Mark video as watched via AJAX
+            fetch('mark_video_watched.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: `lesson_id=${encodeURIComponent(<?= $lesson_id ?>)}`
+            }).catch(error => console.error('Error marking video as watched:', error));
           }, 1000);
         });
 
@@ -343,10 +492,35 @@ shuffle($shuffleQuestions);
             videoContainer.classList.add("hidden");
             quizForm.classList.remove("hidden");
             quizForm.classList.add("visible");
-            proceedContainer.classList.remove("visible");
-            proceedContainer.classList.add("hidden");
+            if (optionsContainer) {
+              optionsContainer.classList.remove("visible");
+              optionsContainer.classList.add("hidden");
+            }
           });
         }
+      }
+
+      if (rewatchButton) {
+        rewatchButton.addEventListener('click', () => {
+          videoContainer.classList.remove("hidden");
+          videoContainer.classList.add("visible");
+          optionsContainer.classList.remove("visible");
+          optionsContainer.classList.add("hidden");
+          waitingMsg.classList.remove("hidden");
+          proceedContainer.classList.add("hidden");
+          proceedContainer.classList.remove("visible");
+        });
+      }
+
+      if (proceedToQuizDirect) {
+        proceedToQuizDirect.addEventListener('click', () => {
+          videoContainer.classList.remove("visible");
+          videoContainer.classList.add("hidden");
+          optionsContainer.classList.remove("visible");
+          optionsContainer.classList.add("hidden");
+          quizForm.classList.remove("hidden");
+          quizForm.classList.add("visible");
+        });
       }
 
       // Loader
@@ -354,7 +528,7 @@ shuffle($shuffleQuestions);
       if (loader) {
         setTimeout(() => {
           loader.classList.add('hidden');
-        }, 500); // Reduced to 0.5 seconds
+        }, 500);
       }
 
       // Submit button and modal

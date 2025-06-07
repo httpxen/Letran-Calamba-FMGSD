@@ -207,7 +207,7 @@
                 <div>
                     <h1 class="text-5xl md:text-7xl font-bold mb-4 animate-hero">EHS Self-Paced Learning System</h1>
                     <p class="text-xl md:text-3xl mb-8 max-w-3xl mx-auto animate-hero" style="transition-delay: 0.2s;">
-                        Transforming safety education with flexible, interactive, and comprehensive training for Letran Calamba students.
+                        Transforming safety education with flexible, interactive, and comprehensive training for Letran Calamba.
                     </p>
                     <a href="#about" class="bg-transparent border border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-black dark:bg-transparent dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black transition animate-hero" style="transition-delay: 0.4s;">Explore Now</a>
                 </div>
@@ -226,7 +226,7 @@
                     </div>
                     <div class="md:w-1/2">
                         <p class="text-gray-700 dark:text-gray-300 text-lg mb-4">
-                            The Self-Paced Seminar and Assessment System for Environmental Health and Safety (EHS) at Letran Calamba is a state-of-the-art platform designed to deliver critical safety education. Students can engage with interactive seminars and assessments at their own pace, ensuring mastery of EHS principles.
+                            The Self-Paced Seminar and Assessment System for Environmental Health and Safety (EHS) at Letran Calamba is a state-of-the-art platform designed to deliver critical safety education. Employees can engage with interactive assessments at their own pace, ensuring mastery of EHS principles.
                         </p>
                         <p class="text-gray-700 dark:text-gray-300 text-lg">
                             With a user-friendly interface and secure technologies, our system promotes a culture of safety and responsibility, aligning with Letran Calamba's mission of excellence.

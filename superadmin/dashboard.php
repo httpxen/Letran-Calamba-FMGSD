@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== "SuperAdmin") {
 }
 
 // Set the current page
-$current_page = 'dashboard.php'; // Add this line to define the current page
+$current_page = 'dashboard.php';
 
 // Get user info from the database
 $user_id = $_SESSION['user_id'];
@@ -117,6 +117,15 @@ $update_stmt->execute();
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
                 </svg>
                 Modules
+              </a>
+            </li>
+            <!-- Survey Management -->
+            <li>
+              <a href="survey_management.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out transform hover:scale-[1.02] <?php echo $current_page === 'survey_management.php' ? 'bg-primary-50 text-primary-600' : ''; ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 0 1 0 2.25H5.625a1.125 1.125 0 0 1 0-2.25Z" />
+                </svg>
+                Survey Management
               </a>
             </li>
             <!-- Account Management -->
