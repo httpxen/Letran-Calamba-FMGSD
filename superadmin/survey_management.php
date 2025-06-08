@@ -87,14 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_survey'])) {
 // Fetch all surveys
 $surveys_query = "SELECT * FROM surveys ORDER BY created_at DESC";
 $surveys_result = $conn->query($surveys_query);
-
-// Fetch survey responses with description
-$responses_query = "SELECT sr.id, sr.survey_id, sr.user_id, sr.rating, sr.feedback, sr.submitted_at, s.title, s.description, u.fullname
-                    FROM survey_responses sr
-                    JOIN surveys s ON sr.survey_id = s.id
-                    JOIN users u ON sr.user_id = u.id
-                    ORDER BY sr.submitted_at DESC";
-$responses_result = $conn->query($responses_query);
 ?>
 
 <!DOCTYPE html>
@@ -395,44 +387,103 @@ $responses_result = $conn->query($responses_query);
             </div>
           </div>
 
-          <!-- Survey Responses Table -->
-          <div class="bg-white shadow-lg rounded-xl overflow-hidden">
+          <!-- Survey Responses Section -->
+          <div class="bg-white shadow-lg rounded-xl overflow-hidden mb-6">
             <div class="p-6 border-b border-gray-100">
               <h2 class="text-xl font-semibold text-dashboard">Survey Responses</h2>
+              <p class="text-sm text-gray-600 mt-1">View and analyze responses for each survey.</p>
             </div>
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Survey Title</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feedback</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted At</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <?php while ($response = $responses_result->fetch_assoc()): ?>
-                    <tr class="hover:bg-gray-50 transition-colors duration-150">
-                      <td class="px-6 py-4 text-sm text-gray-900"><?php echo htmlspecialchars($response['title']); ?></td>
-                      <td class="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                        <span class="tooltip truncate block" data-tooltip="<?php echo htmlspecialchars($response['description'] ?? 'No description'); ?>">
-                          <?php echo htmlspecialchars($response['description'] ?? 'No description'); ?>
-                        </span>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($response['fullname']); ?></td>
-                      <td class="px-6 py-4 text-sm text-gray-600"><?php echo $response['rating']; ?>/5</td>
-                      <td class="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                        <span class="tooltip truncate block" data-tooltip="<?php echo htmlspecialchars($response['feedback'] ?? 'No feedback'); ?>">
-                          <?php echo htmlspecialchars($response['feedback'] ?? 'No feedback'); ?>
-                        </span>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-gray-600"><?php echo date('M d, Y h:i A', strtotime($response['submitted_at'])); ?></td>
-                    </tr>
-                  <?php endwhile; ?>
-                </tbody>
-              </table>
+            <div class="p-6">
+              <?php
+              // Fetch surveys to group responses
+              $surveys_query = "SELECT * FROM surveys ORDER BY created_at DESC";
+              $surveys_result = $conn->query($surveys_query);
+
+              while ($survey = $surveys_result->fetch_assoc()):
+                $survey_id = $survey['id'];
+                // Fetch responses for this survey
+                $responses_query = "SELECT sr.id, sr.user_id, sr.rating, sr.feedback, sr.submitted_at, u.fullname
+                                  FROM survey_responses sr
+                                  JOIN users u ON sr.user_id = u.id
+                                  WHERE sr.survey_id = ?
+                                  ORDER BY sr.submitted_at DESC";
+                $stmt = $conn->prepare($responses_query);
+                $stmt->bind_param("i", $survey_id);
+                $stmt->execute();
+                $responses_result = $stmt->get_result();
+
+                // Calculate summary statistics
+                $total_responses = $responses_result->num_rows;
+                $total_rating = 0;
+                $responses_result->data_seek(0); // Reset result pointer
+                while ($row = $responses_result->fetch_assoc()) {
+                  $total_rating += $row['rating'];
+                }
+                $average_rating = $total_responses > 0 ? round($total_rating / $total_responses, 1) : 0;
+                $responses_result->data_seek(0); // Reset result pointer for display
+              ?>
+                <div class="border border-gray-200 rounded-lg mb-4">
+                  <!-- Survey Header (Accordion Toggle) -->
+                  <button class="w-full flex justify-between items-center px-5 py-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-200 accordion-toggle" data-target="responses-<?php echo $survey_id; ?>">
+                    <div class="flex items-center space-x-4">
+                      <h3 class="text-lg font-semibold text-gray-800"><?php echo htmlspecialchars($survey['title']); ?></h3>
+                      <span class="text-sm text-gray-500">(<?php echo $total_responses; ?> responses)</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                      <span class="text-sm font-medium text-gray-600">Avg. Rating: <?php echo $average_rating; ?>/5</span>
+                      <span class="px-2 py-1 text-xs font-medium rounded-full <?php echo $survey['status'] === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'; ?>">
+                        <?php echo ucfirst($survey['status']); ?>
+                      </span>
+                      <svg class="w-5 h-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+                  <!-- Survey Description -->
+                  <div class="px-5 py-3 bg-gray-50 border-t border-gray-100">
+                    <p class="text-sm text-gray-600"><?php echo htmlspecialchars($survey['description'] ?? 'No description'); ?></p>
+                  </div>
+                  <!-- Responses (Collapsible Content) -->
+                  <div id="responses-<?php echo $survey_id; ?>" class="hidden">
+                    <?php if ($total_responses > 0): ?>
+                      <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                          <thead class="bg-gray-50">
+                            <tr>
+                              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feedback</th>
+                              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted At</th>
+                            </tr>
+                          </thead>
+                          <tbody class="bg-white divide-y divide-gray-200">
+                            <?php while ($response = $responses_result->fetch_assoc()): ?>
+                              <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                <td class="px-6 py-4 text-sm text-gray-600"><?php echo htmlspecialchars($response['fullname']); ?></td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?php echo $response['rating']; ?>/5</td>
+                                <td class="px-6 py-4 text-sm text-gray-600 max-w-md">
+                                  <?php
+                                  $feedback = htmlspecialchars($response['feedback'] ?? 'No feedback');
+                                  if (strlen($feedback) > 100):
+                                  ?>
+                                    <span class="truncate block"><?php echo substr($feedback, 0, 100); ?>...</span>
+                                    <button class="text-primary-600 hover:text-primary-700 text-sm font-medium mt-1 view-feedback-btn" data-feedback="<?php echo $feedback; ?>">View Full</button>
+                                  <?php else: ?>
+                                    <?php echo $feedback; ?>
+                                  <?php endif; ?>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600"><?php echo date('M d, Y h:i A', strtotime($response['submitted_at'])); ?></td>
+                              </tr>
+                            <?php endwhile; ?>
+                          </tbody>
+                        </table>
+                      </div>
+                    <?php else: ?>
+                      <div class="px-6 py-4 text-sm text-gray-500 text-center">No responses for this survey yet.</div>
+                    <?php endif; ?>
+                  </div>
+                </div>
+              <?php endwhile; ?>
             </div>
           </div>
 
@@ -497,6 +548,26 @@ $responses_result = $conn->query($responses_query);
                   <button type="submit" name="delete_survey" class="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium">Delete</button>
                 </div>
               </form>
+            </div>
+          </div>
+
+          <!-- Feedback Modal (for long feedback) -->
+          <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 fade">
+            <div class="modal-content rounded-2xl p-8 w-full max-w-md shadow-2xl">
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Full Feedback</h2>
+                <button id="feedback-close-btn" class="text-gray-500 hover:text-gray-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div class="mb-6">
+                <p id="feedback-content" class="text-sm text-gray-700"></p>
+              </div>
+              <div class="flex justify-end">
+                <button id="feedback-close-btn-footer" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium">Close</button>
+              </div>
             </div>
           </div>
         </main>
@@ -597,6 +668,57 @@ $responses_result = $conn->query($responses_query);
           deleteModal.classList.remove("visible");
           deleteModal.classList.add("hidden");
         });
+      });
+
+      // Accordion toggle for survey responses
+      document.querySelectorAll('.accordion-toggle').forEach(button => {
+        button.addEventListener('click', () => {
+          const targetId = button.getAttribute('data-target');
+          const target = document.getElementById(targetId);
+          const isOpen = !target.classList.contains('hidden');
+          
+          // Close all other accordions
+          document.querySelectorAll('.accordion-toggle').forEach(otherButton => {
+            const otherTargetId = otherButton.getAttribute('data-target');
+            const otherTarget = document.getElementById(otherTargetId);
+            if (otherTargetId !== targetId) {
+              otherTarget.classList.add('hidden');
+              otherButton.querySelector('svg').classList.remove('rotate-180');
+            }
+          });
+
+          // Toggle current accordion
+          target.classList.toggle('hidden');
+          button.querySelector('svg').classList.toggle('rotate-180');
+        });
+      });
+
+      // Feedback modal handling
+      const feedbackModal = document.getElementById('feedback-modal');
+      const feedbackContent = document.getElementById('feedback-content');
+      const feedbackCloseBtns = document.querySelectorAll('#feedback-close-btn, #feedback-close-btn-footer');
+
+      document.querySelectorAll('.view-feedback-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          feedbackContent.textContent = btn.dataset.feedback;
+          feedbackModal.classList.remove('hidden');
+          feedbackModal.classList.add('visible');
+        });
+      });
+
+      feedbackCloseBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          feedbackModal.classList.remove('visible');
+          feedbackModal.classList.add('hidden');
+        });
+      });
+
+      // Close feedback modal when clicking outside
+      document.addEventListener('click', (e) => {
+        if (e.target === feedbackModal) {
+          feedbackModal.classList.remove('visible');
+          feedbackModal.classList.add('hidden');
+        }
       });
     </script>
   </body>

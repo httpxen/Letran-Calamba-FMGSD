@@ -2,6 +2,9 @@
 session_start();
 require_once '../db/db.php';
 
+// Define the current page for highlighting the active menu item
+$current_page = basename($_SERVER['PHP_SELF']); // Gets the current file name (e.g., users.php, survey_management.php)
+
 // Check if user is logged in and has SuperAdmin role
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'SuperAdmin') {
     header('Location: ../login.php');
@@ -112,7 +115,7 @@ function getDeviceInfo($user_agent) {
             <li>
               <a
                 href="dashboard.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 <?php echo $current_page === 'dashboard.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -136,7 +139,7 @@ function getDeviceInfo($user_agent) {
             <li>
               <a
                 href="user_approvals.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 <?php echo $current_page === 'user_approvals.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -160,7 +163,7 @@ function getDeviceInfo($user_agent) {
             <li>
               <a
                 href="users.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-50 text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 <?php echo $current_page === 'users.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -184,7 +187,7 @@ function getDeviceInfo($user_agent) {
             <li>
               <a
                 href="user_records.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 <?php echo $current_page === 'user_records.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -208,7 +211,7 @@ function getDeviceInfo($user_agent) {
             <li>
               <a
                 href="module_list.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 <?php echo $current_page === 'module_list.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -228,11 +231,35 @@ function getDeviceInfo($user_agent) {
               </a>
             </li>
 
+            <!-- Survey Management -->
+            <li>
+              <a
+                href="survey_management.php"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out transform hover:scale-[1.02] <?php echo $current_page === 'survey_management.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="w-5 h-5 text-primary-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 0 1 0 2.25H5.625a1.125 1.125 0 0 1 0-2.25Z"
+                  />
+                </svg>
+                Survey Management
+              </a>
+            </li>
+
             <!-- Account Management -->
             <li>
               <a
                 href="account_management.php"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 <?php echo $current_page === 'account_management.php' ? 'bg-primary-50 text-primary-600' : ''; ?>"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -311,27 +338,7 @@ function getDeviceInfo($user_agent) {
             </p>
           </div>
           <div class="flex items-center space-x-4">
-            <div class="relative">
-              <input
-                type="text"
-                placeholder="Search..."
-                class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-600"
-              />
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1116.65 16.65z"
-                />
-              </svg>
-            </div>
+  
             <div class="relative flex items-center space-x-2 cursor-pointer" id="profile">
               <span class="text-gray-600 font-medium"><?php echo $fullname; ?></span>
               <div class="relative">
