@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_survey'])) {
         if ($stmt->execute()) {
             $success = "Survey created successfully!";
         } else {
-            $error = "Failed to create survey.";
+            $error = "Failed to create survey: " . $conn->error;
         }
     } else {
         $error = "Title is required.";
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_survey'])) {
         if ($stmt->execute()) {
             $success = "Survey updated successfully!";
         } else {
-            $error = "Failed to update survey.";
+            $error = "Failed to update survey: " . $conn->error;
         }
     } else {
         $error = "Title is required.";
@@ -80,13 +80,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_survey'])) {
     if ($stmt->execute()) {
         $success = "Survey deleted successfully!";
     } else {
-        $error = "Failed to delete survey.";
+        $error = "Failed to delete survey: " . $conn->error;
     }
 }
 
 // Fetch all surveys
 $surveys_query = "SELECT * FROM surveys ORDER BY created_at DESC";
 $surveys_result = $conn->query($surveys_query);
+if (!$surveys_result) {
+    die("Query failed: " . $conn->error);
+}
 ?>
 
 <!DOCTYPE html>
@@ -206,13 +209,13 @@ $surveys_result = $conn->query($surveys_query);
               </a>
             </li>
             <li>
-              <a href="module_list.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out transform hover:scale-[1.02] <?php echo $current_page === 'module_list.php' ? 'bg-primary-50 text-primary-600' : ''; ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
-                </svg>
-                Modules
-              </a>
-            </li>
+            <a href="module_list.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out transform hover:scale-[1.02] <?php echo $current_page === 'module_list.php' ? 'bg-primary-50 text-primary-600' : ''; ?>">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Modules
+            </a>
+          </li>
             <li>
               <a href="survey_management.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-primary-50 hover:text-primary-600 font-medium transition-all duration-200 ease-in-out transform hover:scale-[1.02] <?php echo $current_page === 'survey_management.php' ? 'bg-primary-50 text-primary-600' : ''; ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -398,6 +401,9 @@ $surveys_result = $conn->query($surveys_query);
               // Fetch surveys to group responses
               $surveys_query = "SELECT * FROM surveys ORDER BY created_at DESC";
               $surveys_result = $conn->query($surveys_query);
+              if (!$surveys_result) {
+                die("Query failed: " . $conn->error);
+              }
 
               while ($survey = $surveys_result->fetch_assoc()):
                 $survey_id = $survey['id'];
@@ -517,7 +523,39 @@ $surveys_result = $conn->query($surveys_query);
                 </div>
                 <div class="flex justify-end gap-3">
                   <button type="button" id="cancel-btn" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium">Cancel</button>
-                  <button type="submit" name="create_survey" id="submit-btn" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium">Create</button>
+                  <button type="button" id="confirm-btn" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium">Confirm</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Survey Confirmation Modal -->
+          <div id="survey-confirm-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 fade">
+            <div class="modal-content rounded-2xl p-8 w-full max-w-md shadow-2xl">
+              <div class="flex justify-between items-center mb-6">
+                <h2 id="confirm-modal-title" class="text-2xl font-bold text-gray-800"></h2>
+                <button id="confirm-cancel-btn" class="text-gray-500 hover:text-gray-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div class="mb-6">
+                <p class="text-gray-700 text-sm mb-4" id="confirm-modal-text"></p>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <p class="text-sm font-medium text-gray-900"><span class="font-semibold">Title:</span> <span id="confirm-survey-title"></span></p>
+                  <p class="text-sm text-gray-600 mt-2"><span class="font-semibold">Description:</span> <span id="confirm-survey-description"></span></p>
+                </div>
+              </div>
+              <form id="confirm-form" method="POST">
+                <input type="hidden" name="survey_id" id="confirm_survey_id">
+                <input type="hidden" name="title" id="confirm_title">
+                <input type="hidden" name="description" id="confirm_description">
+                <input type="hidden" name="status" id="confirm_status">
+                <input type="hidden" name="action" id="confirm_action">
+                <div class="flex justify-end gap-3">
+                  <button type="button" id="confirm-cancel-btn-footer" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium">Cancel</button>
+                  <button type="submit" id="confirm-submit-btn" name="" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium"></button>
                 </div>
               </form>
             </div>
@@ -614,12 +652,10 @@ $surveys_result = $conn->query($surveys_query);
       const surveyCancelBtn = document.querySelectorAll("#cancel-btn");
       const surveyForm = document.getElementById("survey-form");
       const modalTitle = document.getElementById("modal-title");
-      const submitBtn = document.getElementById("submit-btn");
+      const confirmBtn = document.getElementById("confirm-btn");
 
       createSurveyBtn.addEventListener("click", () => {
         modalTitle.textContent = "Create New Survey";
-        submitBtn.name = "create_survey";
-        submitBtn.textContent = "Create";
         surveyForm.reset();
         document.getElementById("survey_id").value = "";
         surveyModal.classList.remove("hidden");
@@ -633,12 +669,52 @@ $surveys_result = $conn->query($surveys_query);
         });
       });
 
+      // Survey Confirmation Modal handling
+      const confirmModal = document.getElementById("survey-confirm-modal");
+      const confirmCancelBtn = document.querySelectorAll("#confirm-cancel-btn, #confirm-cancel-btn-footer");
+      const confirmForm = document.getElementById("confirm-form");
+      const confirmSubmitBtn = document.getElementById("confirm-submit-btn");
+
+      confirmBtn.addEventListener("click", () => {
+        const surveyId = document.getElementById("survey_id").value;
+        const title = document.getElementById("title").value.trim();
+        const description = document.getElementById("description").value.trim();
+        const status = document.getElementById("status").value;
+        
+        if (!title) {
+          alert("Title is required.");
+          return;
+        }
+
+        document.getElementById("confirm_survey_id").value = surveyId;
+        document.getElementById("confirm_title").value = title;
+        document.getElementById("confirm_description").value = description;
+        document.getElementById("confirm_status").value = status;
+        document.getElementById("confirm-survey-title").textContent = title;
+        document.getElementById("confirm-survey-description").textContent = description || "No description";
+        document.getElementById("confirm-modal-title").textContent = surveyId ? "Confirm Update Survey" : "Confirm Create Survey";
+        document.getElementById("confirm-modal-text").textContent = surveyId ? "Are you sure you want to update this survey?" : "Are you sure you want to create this survey?";
+        document.getElementById("confirm_action").value = surveyId ? "update_survey" : "create_survey";
+        confirmSubmitBtn.name = surveyId ? "update_survey" : "create_survey";
+        confirmSubmitBtn.textContent = surveyId ? "Update" : "Create";
+        
+        surveyModal.classList.remove("visible");
+        surveyModal.classList.add("hidden");
+        confirmModal.classList.remove("hidden");
+        confirmModal.classList.add("visible");
+      });
+
+      confirmCancelBtn.forEach(btn => {
+        btn.addEventListener("click", () => {
+          confirmModal.classList.remove("visible");
+          confirmModal.classList.add("hidden");
+        });
+      });
+
       // Edit survey
       document.querySelectorAll(".edit-survey-btn").forEach(btn => {
         btn.addEventListener("click", () => {
           modalTitle.textContent = "Edit Survey";
-          submitBtn.name = "update_survey";
-          submitBtn.textContent = "Update";
           document.getElementById("survey_id").value = btn.dataset.id;
           document.getElementById("title").value = btn.dataset.title;
           document.getElementById("description").value = btn.dataset.description;
