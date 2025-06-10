@@ -90,6 +90,11 @@ $surveys_result = $conn->query($surveys_query);
 if (!$surveys_result) {
     die("Query failed: " . $conn->error);
 }
+
+// Get filter parameters
+$sort_order = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'desc';
+$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : '';
+$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : '';
 ?>
 
 <!DOCTYPE html>
@@ -396,6 +401,30 @@ if (!$surveys_result) {
               <h2 class="text-xl font-semibold text-dashboard">Survey Responses</h2>
               <p class="text-sm text-gray-600 mt-1">View and analyze responses for each survey.</p>
             </div>
+            <!-- Filter Form -->
+            <div class="p-6 border-b border-gray-100">
+              <form id="filter-form" method="GET" class="flex flex-col sm:flex-row sm:items-end gap-4">
+                <div class="flex-1">
+                  <label for="sort_order" class="block text-sm font-medium text-gray-700 mb-2">Sort By Date</label>
+                  <select name="sort_order" id="sort_order" class="w-full rounded-lg border border-gray-200 p-3 bg-white/50 focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all duration-200">
+                    <option value="desc" <?php echo $sort_order === 'desc' ? 'selected' : ''; ?>>Newest First</option>
+                    <option value="asc" <?php echo $sort_order === 'asc' ? 'selected' : ''; ?>>Oldest First</option>
+                  </select>
+                </div>
+                <div class="flex-1">
+                  <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <input type="date" name="start_date" id="start_date" value="<?php echo htmlspecialchars($start_date); ?>" class="w-full rounded-lg border border-gray-200 p-3 bg-white/50 focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all duration-200">
+                </div>
+                <div class="flex-1">
+                  <label for="end_date" class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <input type="date" name="end_date" id="end_date" value="<?php echo htmlspecialchars($end_date); ?>" class="w-full rounded-lg border border-gray-200 p-3 bg-white/50 focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all duration-200">
+                </div>
+                <div class="flex gap-3">
+                  <button type="submit" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-200 font-medium">Apply Filters</button>
+                  <button type="button" id="reset-filters" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-medium">Reset</button>
+                </div>
+              </form>
+            </div>
             <div class="p-6">
               <?php
               // Fetch surveys to group responses
@@ -407,14 +436,36 @@ if (!$surveys_result) {
 
               while ($survey = $surveys_result->fetch_assoc()):
                 $survey_id = $survey['id'];
-                // Fetch responses for this survey
+                // Build responses query with filters
                 $responses_query = "SELECT sr.id, sr.user_id, sr.rating, sr.feedback, sr.submitted_at, u.fullname
                                   FROM survey_responses sr
                                   JOIN users u ON sr.user_id = u.id
-                                  WHERE sr.survey_id = ?
-                                  ORDER BY sr.submitted_at DESC";
+                                  WHERE sr.survey_id = ?";
+                $params = [$survey_id];
+                $types = "i";
+
+                // Add date range filter
+                if ($start_date && $end_date) {
+                    $responses_query .= " AND sr.submitted_at BETWEEN ? AND ?";
+                    $params[] = $start_date . " 00:00:00";
+                    $params[] = $end_date . " 23:59:59";
+                    $types .= "ss";
+                } elseif ($start_date) {
+                    $responses_query .= " AND sr.submitted_at >= ?";
+                    $params[] = $start_date . " 00:00:00";
+                    $types .= "s";
+                } elseif ($end_date) {
+                    $responses_query .= " AND sr.submitted_at <= ?";
+                    $params[] = $end_date . " 23:59:59";
+                    $types .= "s";
+                }
+
+                // Add sort order
+                $responses_query .= " ORDER BY sr.submitted_at " . ($sort_order === 'asc' ? 'ASC' : 'DESC');
+
+                // Prepare and execute query
                 $stmt = $conn->prepare($responses_query);
-                $stmt->bind_param("i", $survey_id);
+                $stmt->bind_param($types, ...$params);
                 $stmt->execute();
                 $responses_result = $stmt->get_result();
 
@@ -795,6 +846,12 @@ if (!$surveys_result) {
           feedbackModal.classList.remove('visible');
           feedbackModal.classList.add('hidden');
         }
+      });
+
+      // Reset filters
+      document.getElementById('reset-filters').addEventListener('click', () => {
+        document.getElementById('filter-form').reset();
+        window.location.href = 'survey_management.php';
       });
     </script>
   </body>
