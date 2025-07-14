@@ -217,6 +217,9 @@
                     </a>
                 </div>
                 <div class="flex items-center space-x-3">
+                    <a href="developers.php" class="w-full bg-blue-900 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-800 dark:bg-gray-700 dark:hover:bg-gray-600 transition duration-300">Dev</a>
+                </div>
+                <div class="flex items-center space-x-3">
                     <a href="login.php" class="w-full bg-blue-900 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-800 dark:bg-gray-700 dark:hover:bg-gray-600 transition duration-300">LOGIN</a>
                     <button id="theme-toggle" class="bg-gray-200 dark:bg-gray-700 p-2 rounded-full focus:outline-none">
                         <svg id="theme-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

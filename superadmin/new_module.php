@@ -252,8 +252,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       <option value="Safety" <?php echo ($_POST['category'] ?? '') === 'Safety' ? 'selected' : ''; ?>>Safety</option>
                       <option value="Environment" <?php echo ($_POST['category'] ?? '') === 'Environment' ? 'selected' : ''; ?>>Environment</option>
                       <option value="Health" <?php echo ($_POST['category'] ?? '') === 'Health' ? 'selected' : ''; ?>>Health</option>
-                      <option value="Certification" <?php echo ($_POST['category'] ?? '') === 'Certification' ? 'selected' : ''; ?>>Certification</option>
-                      <option value="Other" <?php echo ($_POST['category'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
                     </select>
                     <?php if (isset($errors['category'])): ?>
                       <p class="mt-1 text-sm text-red-600"><?php echo htmlspecialchars($errors['category']); ?></p>
