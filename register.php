@@ -375,7 +375,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body class="min-h-screen bg-gray-100 flex items-center justify-center">
     <div class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden register-container">
         <!-- Left Side: School Image -->
-        <div class="hidden md:block md:w-1/2 bg-cover bg-center" style="background-image: url('https://the-post-assets.sgp1.digitaloceanspaces.com/2020/08/LETRAN-15.jpg')"></div>
+        <div class="hidden md:block md:w-1/2 bg-cover bg-center" style="background-image: url('https://i.ytimg.com/vi/Q3AWCBIbwJs/maxresdefault.jpg')"></div>
         
         <!-- Right Side: Register Form -->
         <div class="w-full md:w-1/2 p-8 flex flex-col justify-center">
